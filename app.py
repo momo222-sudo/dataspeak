@@ -60,6 +60,13 @@ def reset_usage_if_needed(db, user):
     """Reset monthly usage counter if we're in a new month."""
     this_month = date.today().strftime('%Y-%m')
     if user['usage_reset_month'] != this_month:
+        # If month was never set (empty string = existing user pre-migration),
+        # just stamp the current month without wiping their count.
+        if not user['usage_reset_month']:
+            db.execute('UPDATE users SET usage_reset_month=? WHERE id=?',
+                       (this_month, user['id']))
+            db.commit()
+            return user['usage_count']
         db.execute('UPDATE users SET usage_count=0, usage_reset_month=? WHERE id=?',
                    (this_month, user['id']))
         db.commit()
@@ -139,7 +146,7 @@ def admin_stats():
     return jsonify({
         'total_signups': total, 'today': today, 'pro_users': pro,
         'mrr_estimate': pro * 5,
-        'recent': [{'email': r['email'], 'plan': r['plan'], 'joined': r['created_at']} for r in recent]
+        'recent': [{'email': r['email'], 'plan': r['plan']} for r in recent]
     })
 
 # ── Stripe: create checkout session ──────────────────────────────────────────
@@ -166,7 +173,6 @@ def create_checkout():
         return jsonify({'error': 'Already on Pro plan.'}), 400
 
     try:
-        # Create or already retrieve Stripe customer
         if user['stripe_customer_id']:
             customer_id = user['stripe_customer_id']
         else:
@@ -218,7 +224,7 @@ def billing_portal():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Stripe webhook ──────────────────────────────────────────────────────────────────
+# ── Stripe webhook ────────────────────────────────────────────────────────────
 @app.route('/api/stripe-webhook', methods=['POST'])
 def stripe_webhook():
     if not STRIPE_SECRET_KEY:
@@ -260,7 +266,7 @@ def stripe_webhook():
     elif etype == 'invoice.payment_failed':
         cust_id = data.get('customer')
         with get_db() as db:
-            db.execute('UPDATE users SET plan=?: WHERE stripe_customer_id=?', ('free', cust_id))
+            db.execute('UPDATE users SET plan=? WHERE stripe_customer_id=?', ('free', cust_id))
             db.commit()
 
     return jsonify({'received': True})
@@ -279,7 +285,6 @@ def generate():
         if not user:
             return jsonify({'error': 'Invalid token. Please sign in again.'}), 401
 
-        # Reset monthly counter if needed, then check limit
         reset_usage_if_needed(db, user)
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
         can, err = user_can_generate(user)
@@ -345,7 +350,6 @@ FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), 
             max_tokens=1800,
             messages=[{'role': 'user', 'content': prompt}]
         )
-        # Increment usage counter
         with get_db() as db:
             db.execute('UPDATE users SET usage_count=usage_count+1 WHERE token=?', (token,))
             db.commit()
