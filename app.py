@@ -145,11 +145,14 @@ def admin_stats():
 # ── Stripe: create checkout session ──────────────────────────────────────────
 @app.route('/api/create-checkout-session', methods=['POST'])
 def create_checkout():
-    if not STRIPE_SECRET_KEY:
+    _stripe_key   = os.environ.get('STRIPE_SECRET_KEY', '')
+    _price_id     = os.environ.get('STRIPE_PRICE_ID', '')
+    _app_url      = os.environ.get('APP_URL', '')
+    if not _stripe_key:
         return jsonify({'error': 'Payments not configured yet.'}), 500
 
     import stripe
-    stripe.api_key = STRIPE_SECRET_KEY
+    stripe.api_key = _stripe_key
 
     data  = request.json or {}
     token = (data.get('token') or '').strip()
@@ -163,7 +166,7 @@ def create_checkout():
         return jsonify({'error': 'Already on Pro plan.'}), 400
 
     try:
-        # Create or retrieve Stripe customer
+        # Create or already retrieve Stripe customer
         if user['stripe_customer_id']:
             customer_id = user['stripe_customer_id']
         else:
@@ -177,10 +180,10 @@ def create_checkout():
         session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=['card'],
-            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            line_items=[{'price': _price_id, 'quantity': 1}],
             mode='subscription',
-            success_url=f'{APP_URL}/?upgraded=1&token={token}',
-            cancel_url=f'{APP_URL}/?cancelled=1',
+            success_url=f'{_app_url}/?upgraded=1&token={token}',
+            cancel_url=f'{_app_url}/?cancelled=1',
             subscription_data={'trial_period_days': 7},
         )
         return jsonify({'url': session.url})
@@ -190,11 +193,13 @@ def create_checkout():
 # ── Stripe: billing portal (manage/cancel) ───────────────────────────────────
 @app.route('/api/billing-portal', methods=['POST'])
 def billing_portal():
-    if not STRIPE_SECRET_KEY:
+    _stripe_key = os.environ.get('STRIPE_SECRET_KEY', '')
+    _app_url    = os.environ.get('APP_URL', '')
+    if not _stripe_key:
         return jsonify({'error': 'Payments not configured yet.'}), 500
 
     import stripe
-    stripe.api_key = STRIPE_SECRET_KEY
+    stripe.api_key = _stripe_key
 
     data  = request.json or {}
     token = (data.get('token') or '').strip()
@@ -207,13 +212,13 @@ def billing_portal():
     try:
         portal = stripe.billing_portal.Session.create(
             customer=user['stripe_customer_id'],
-            return_url=APP_URL,
+            return_url=_app_url,
         )
         return jsonify({'url': portal.url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Stripe webhook ────────────────────────────────────────────────────────────
+# ── Stripe webhook ──────────────────────────────────────────────────────────────────
 @app.route('/api/stripe-webhook', methods=['POST'])
 def stripe_webhook():
     if not STRIPE_SECRET_KEY:
@@ -255,7 +260,7 @@ def stripe_webhook():
     elif etype == 'invoice.payment_failed':
         cust_id = data.get('customer')
         with get_db() as db:
-            db.execute('UPDATE users SET plan=? WHERE stripe_customer_id=?', ('free', cust_id))
+            db.execute('UPDATE users SET plan=?: WHERE stripe_customer_id=?', ('free', cust_id))
             db.commit()
 
     return jsonify({'received': True})
