@@ -334,7 +334,9 @@ Provide the following outputs using the EXACT section headers shown below:
 
 {sections}
 
-Be specific — reference actual numbers, values, and patterns from the data. Write like a senior analyst explaining to a real person."""
+Be specific — reference actual numbers, values, and patterns from the data. Write like a senior analyst explaining to a real person.
+
+FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), no ## or ### headers. For lists use a dash and space (- item). Write section headers exactly as shown above in plain uppercase."""
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
