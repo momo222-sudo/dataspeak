@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DataSpeak — Turn Raw Data Into Clear Insights</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #070b12;
+      --surface: #0e1420;
+      --surface2: #141c2e;
+      --border: #1e2d45;
+      --accent: #00ff88;
+      --accent2: #4f6ef7;
+      --accent3: #f7c948;
+      --text: #eaf0ff;
+      --muted: #6b7fa3;
+      --error: #ff5f72;
+      --success: #00ff88;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    .bg-glow {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, #00ff8812 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, #4f6ef715 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, #f7c94808 0%, transparent 60%);
+    }
+    .grid-overlay {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.3;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      padding: 16px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: #070b12cc;
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .logo-mark { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 17px; }
+    .nav-right { display: flex; align-items: center; gap: 14px; }
+    .nav-pill { font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); background: var(--surface); }
+    .nav-pill.green { border-color: #00ff8855; color: var(--accent); background: #00ff8812; }
+    .nav-signout { background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; }
+    .nav-signout:hover { color: var(--text); }
+
+    .gate {
+      position: relative; z-index: 10;
+      min-height: calc(100vh - 65px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 60px 24px;
+    }
+    .gate-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #00ff8812; border: 1px solid #00ff8833;
+      color: var(--accent); font-size: 12px; font-weight: 600;
+      padding: 6px 16px; border-radius: 20px; margin-bottom: 28px;
+      letter-spacing: 0.5px;
+    }
+    .gate-eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    .gate h1 { font-size: clamp(36px, 7vw, 72px); font-weight: 900; line-height: 1.05; letter-spacing: -2px; text-align: center; max-width: 780px; margin-bottom: 20px; }
+    .gate h1 .grad { background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .gate-sub { font-size: 18px; color: var(--muted); text-align: center; max-width: 560px; line-height: 1.65; margin-bottom: 40px; }
+    .source-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 44px; }
+    .spill { display: flex; align-items: center; gap: 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 30px; padding: 8px 16px; font-size: 13px; font-weight: 500; }
+    .spill .sicon { font-size: 16px; }
+    .signup-box { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; max-width: 480px; width: 100%; box-shadow: 0 0 80px #00ff8808, 0 32px 64px #00000080; }
+    .signup-box h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+    .signup-box p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+    .perks { display: flex; flex-direction: column; gap: 9px; margin-bottom: 24px; }
+    .perk { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+    .perk-icon { font-size: 16px; }
+    .email-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .email-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 14px; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
+    .email-row input:focus { border-color: var(--accent); }
+    .cta-btn { padding: 12px 20px; background: var(--accent); color: #070b12; font-weight: 800; font-size: 14px; border: none; border-radius: 10px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px #00ff8840; }
+    .cta-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .gate-note { font-size: 12px; color: var(--muted); text-align: center; }
+    .gate-error { font-size: 13px; color: var(--error); min-height: 18px; margin-top: 8px; }
+    .returning-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; font-size: 13px; color: var(--muted); }
+    .returning-row button { background: none; border: none; color: var(--accent2); cursor: pointer; font-size: 13px; text-decoration: underline; }
+    .token-input-wrap { margin-top: 14px; display: none; }
+    .token-input-wrap input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 13px; padding: 10px 14px; outline: none; margin-bottom: 8px; }
+    .token-input-wrap button { width: 100%; padding: 10px; background: var(--accent2); color: #fff; font-weight: 700; font-size: 13px; border: none; border-radius: 10px; cursor: pointer; }
+    .app-wrap { display: none; position: relative; z-index: 10; }
+    .app-wrap.visible { display: block; }
+    .app-hero { text-align: center; padding: 52px 24px 36px; }
+    .app-hero h1 { font-size: clamp(28px, 4vw, 46px); font-weight: 900; letter-spacing: -1.5px; margin-bottom: 10px; }
+    .app-hero h1 .grad { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .app-hero p { font-size: 16px; color: var(--muted); }
+    .tool-wrap { max-width: 900px; margin: 0 auto; padding: 0 24px 100px; }
+    .welcome-bar { background: linear-gradient(135deg, #00ff8810, #4f6ef710); border: 1px solid #00ff8830; border-radius: 14px; padding: 16px 22px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; font-size: 14px; }
+    .welcome-bar strong { color: var(--accent); }
+    .share-btn { background: var(--accent); color: #070b12; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .share-btn:hover { opacity: 0.85; }
+    .source-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .src-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 30px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+    .src-btn.active { border-color: var(--accent); color: var(--accent); background: #00ff8812; }
+    .src-btn .si { font-size: 15px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+    .card-header { padding: 14px 22px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+    .input-tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .itab { flex: 1; padding: 13px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
+    .itab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .itab-panel { display: none; padding: 20px; }
+    .itab-panel.active { display: block; }
+    textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.65; padding: 14px; resize: vertical; min-height: 160px; outline: none; transition: border-color 0.2s; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface2); }
+    .upload-zone:hover { border-color: var(--accent); background: #00ff8808; }
+    .upload-zone .uicon { font-size: 36px; margin-bottom: 12px; }
+    .upload-zone p { color: var(--muted); font-size: 14px; }
+    .upload-zone strong { color: var(--accent); }
+    .upload-zone input[type=file] { display: none; }
+    .file-chosen { margin-top: 10px; font-size: 12px; color: var(--success); }
+    .context-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media(max-width:580px){ .context-row{ grid-template-columns:1fr; } }
+    label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    input[type=text], select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s; }
+    input[type=text]:focus, select:focus { border-color: var(--accent); }
+    .output-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .opt-chip { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: 30px; padding: 8px 16px; font-size: 13px; cursor: pointer; transition: all 0.2s; user-select: none; }
+    .opt-chip input { display: none; }
+    .opt-chip.checked { border-color: var(--accent); background: #00ff8812; color: var(--accent); }
+    .gen-btn { width: 100%; padding: 15px; margin-top: 20px; background: linear-gradient(135deg, var(--accent) 0%, #00cc6a 100%); color: #070b12; font-weight: 900; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s;
+letter-spacing: -0.3px; }
+    .gen-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px #00ff8840; }
+    .gen-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .loader { display: none; text-align: center; padding: 40px; }
+    .loader.visible { display: block; }
+    .spinner { width: 42px; height: 42px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader p { color: var(--muted); font-size: 14px; }
+    .error-box { display: none; background: #ff5f7212; border: 1px solid #ff5f7244; border-radius: 10px; padding: 12px 16px; color: var(--error); font-size: 13px; margin-top: 12px; }
+    .error-box.visible { display: block; }
+    .output-card { display: none; }
+    .output-card.visible { display: block; }
+    .output-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .otab { padding: 13px 18px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; transition: all 0.2s; }
+    .otab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .otab-panel { display: none; padding: 24px; }
+    .otab-panel.active { display: block; }
+    .output-text { font-size: 14px; line-height: 1.85; color: var(--text); white-space: pre-wrap; background: var(--surface2); border-radius: 10px; padding: 18px; border: 1px solid var(--border); min-height: 100px; }
+    .copy-btn { margin-top: 12px; padding: 9px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div class="grid-overlay"></div>
+  <nav><div class="logo"><div class="logo-mark">📊</div> DataSpeak</div><div class="nav-right" id="navRight" style="display:none;"><span class="nav-pill green">Free</span><button class="nav-signout" onclick="logout()">Sign out</button></div></nav>
+  <section class="gate" id="gate">
+    <div class="gate-eyebrow"><div class="dot"></div> Free for everyone — no credit card</div>
+    <h1>Raw data in. <br><span class="grad">Clear words out.</span></h1>
+    <p class="gate-sub">Paste your SQL results, R output, Python DataFrame, or CSV — and get a professional summary, insights, recommendations and email in seconds.</p>
+    <div class="source-pills"><div class="spill"><span class="sicon">🗄️</span> SQL</div><div class="spill"><span class="sicon">📊</span> R</div><div class="spill"><span class="sicon">🐍</span> Python</div><div class="spill"><span class="sicon">📁</span> Excel / CSV</div></div>
+    <div class="signup-box">
+      <h2>Get started free</h2><p>Sign up with your email and start turning data into insights immediately.</p>
+      <div class="perks"><div class="perk"><span class="perk-icon">✅</span> Free forever — no credit card ever</div><div class="perk"><span class="perk-icon">⚩</span> Works with SQL, R, Python, Excel, CSV</div><div class="perk"><span class="perk-icon">📝 📝 Summary, bullets, recommendations &amp; email</div><div class="perk"><span class="perk-icon">🔌 </span> Chrome extension for your SQL tool</div></div>
+      <div class="email-row"><input type="email" id="signupEmail" placeholder="your@email.com" onkeydown="if(event.key==='Enter') startFree()"/><button class="cta-btn" id="signupBtn" onclick="startFree()">Get Access →</button></div>
+      <div class="gate-note">Join analysts and students already using DataSpeak</div>
+      <div class="gate-error" id="gateError"></div>
+      <div class="returning-row">Already have an account? <button onclick="showTokenLogin()">Sign in →</button></div>
+      <div class="token-input-wrap" id="tokenWrap"><input type="text" id="tokenInput" placeholder="Paste your access token"/><button onclick="loginWithToken()">Sign In</button></div>
+    </div>
+  </section>
+  <div class="app-wrap" id="appWrap">
+    <div class="app-hero"><h1>Your data. <span class="grad">Human words.</span></h1><p>Paste your results below and get a professional report in under 10 seconds.</p></div>
+    <div class="tool-wrap">
+      <div class="welcome-bar" id="welcomeBar"><span>👋 Welcome back, <strong id="welcomeEmail"></strong> — you're on the free plan</span><button class="share-btn" onclick="shareApp()">📤 Share DataSpeak</button></div>
+      <div class="source-selector"><button class="src-btn active" data-src="sql" onclick="setSource('sql',this)"><span class="si">🗄️</span> SQL</button><button class="src-btn" data-src="r" onclick="setSource('r',this)"><span class="si">🍊</span> R</button><button class="src-btn" data-src="python" onclick="setSource('python',this)"><span class="si">🐍<</span> Python</button><button class="src-btn" data-src="excel" onclick="setSource('excel',this)"><span class="si">📁<</span> Excel / CSV</button></div>
+      <div class="card"><div class="input-tabs"><button class="itab active" onclick="switchInput('paste',this)">📋 Paste Data</button><button class="itab" onclick="switchInput('csv',this)">📁 Upload File</button></div>
+      <div class="itab-panel active" id="tab-paste"><label id="pasteLabel">Paste your SQL results</label><textarea id="dataInput"></textarea></div>
+      <div class="itab-panel" id="tab-csv"><div class="upload-zone" onclick="document.getElementById('csvFile').click()"><div class="uicon">📂</div><p><strong>Click to upload</strong> or drag &amp; drop</p><p style="font-size:12px;margin-top:4px;">Supports .csv files</p><input type="file" id="csvFile" accept=".csv" onchange="handleFile(this)"/><div class="file-chosen" id="fileChosen"></div></div></div>
+      <div style="padding:0 20px 22px;"><div class="context-row"><div><label>What question were you answering?</label><input type="text" id="contextInput" placeholder="e.g. Which region has the best sales?"/></div><div><label>Audience</label><select id="audienceSelect"><option value="executive">Executive / Manager</option><option value="professor">Professor / Grader</option><option value="client">Client</option><option value="team">Technical Team</option><option value="general">General</option></select></div></div>
+      <div style="margin-top:18px;"><label>Output formats</label><div class="output-options"><label class="opt-chip checked"><input type="checkbox" checked value="summary" onchange="toggleChip(this)"/> 📝 Summary</label><label class="opt-chip checked"><input type="checkbox" checked value="bullets" onchange="toggleChip(this)"/> 💡 Key Insights</label><label class="opt-chip checked"><input type="checkbox" checked value="recommendations" onchange="toggleChip(this)"/> 🎯 Recommendations</label><label class="opt-chip checked"><input type="checkbox" checked value="email" onchange="toggleChip(this)"/> 📧 Email</label></div></div>
+      <button class="gen-btn" id="genBtn" onclick="generate()">✨ Generate Insights</button><div class="error-box" id="errorBox"></div></div></div>
+      <div class="loader" id="loader"><div class="spinner"></div><p>Analyzing your data and writing insights...</p></div>
+      <div class="card output-card" id="outputCard"><div class="card-header">✅ Your Insights — copy and use anywhere</div><div class="output-tabs" id="outputTabs"></div><div id="outputPanels"></div></div>
+    </div>
+  </div>
+<script>
+let userToken='',csvContent='',currentSrc='sql',currentInputTab='paste';
+const placeholders={sql:'region | total_sales | customers',r:'um(formula=salary~experience,data=df)',python:'DataFrame.describe() output',excel:'Month|Revenue|Expenses|Profit'};
+const pasteLabels={sql:'Paste your SQL results',r:'Paste your R output',python:'Paste your Python output',excel:'Paste your Excel data'};
+function b64(s){return btoa(unescape(encodeURIComponent(s)))}
+window.onload=async()=>{const p=new URLSearchParams(window.location.search),t=p.get('token');if(t){localStorage.setItem('ds_token',t);window.history.replaceState({},'','/')}const s=localStorage.getItem('ds_token');if(s)await checkLogin(s);updatePlaceholder()};
+async function checkLogin(t){try{const r=await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:t})}),d=await r.json();if(d.error){localStorage.removeItem('ds_token');return}userToken=t;showApp(d.email)}catch(e){}}
+function showApp(e){document.getElementById('gate').style.display='none';document.getElementById('appWrap').classList.add('visible');document.getElementById('navRight').style.display='flex';document.getElementById('welcomeEmail').textContent=e;updatePlaceholder()}
+async function startFree(){const e=document.getElementById('signupEmail').value.trim();if(!e||!e.includes('@')){setGateErr('Please enter a valid email.');return}const b=document.getElementById('signupBtn');b.disabled=true;b.textContent='Setting up...';setGateErr('');try{const r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:e})}),d=await r.json();if(d.error){setGateErr(d.error);return}localStorage.setItem('ds_token',d.token);userToken=d.token;if(!d.returning)alert('Welcome!\nToken: '+d.token);showApp(e)}catch(e){setGateErr('Something went wrong.')}finally{b.disabled=false;b.textContent='Get Access →'}}
+function showTokenLogin(){document.getElementById('tokenWrap').style.display='block'}
+async function loginWithToken(){const t=document.getElementById('tokenInput').value.trim();if(!t){setGateErr('Please enter your token.');return}localStorage.setItem('ds_token',t);await checkLogin(t);if(!userToken)setGateErr('Invalid token.')}
+function setSource(s,e){currentSrc=s;document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));e.classList.add('active');updatePlaceholder()}
+function updatePlaceholder(){const t=document.getElementById('dataInput');if(t)t.placeholder=placeholders[currentSrc]||'';const l=document.getElementById('pasteLabel');if(l)l.textContent=pasteLabels[currentSrc]||'Paste your data'}
+function switchInput(t,e){currentInputTab=t;document.querySelectorAll('.itab').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.itab-panel').forEach(p=>p.classList.remove('active'));e.classList.add('active');document.getElementById('tab-'+t).classList.add('active')}
+function toggleChip(c){c.closest('.opt-chip').classList.toggle('checked',c.checked)}
+function handleFile(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{csvContent=e.target.result;document.getElementById('fileChosen').textContent='✅ '+f.name};r.readAsText(f)}
+async function generate(){const raw=currentInputTab==='paste'?document.getElementById('dataInput').value.trim():csvContent;if(!raw){showErr('Please paste data or upload a file.');return}if(!userToken){showErr('Please sign in first.');return}const outputs=Array.from(document.querySelectorAll('.opt-chip input:checked')).map(i=>i.value);if(!outputs.length){showErr('select at least one output.');return}showErr('');setLoading(true);try{const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:userToken,data:raw,context:document.getElementById('contextInput').value.trim(),audience:document.getElementById('audienceSelect').value,outputs,data_source:currentSrc})}),j=await r.json();if(j.error){showErr(js.error);return}renderOutput(j.result,outputs)}catch(e){showErr('Network error.')}finally{setLoading(false)}}
+const tabLabels={summary:'📝 Summary',bullets:'💡 Insights',zcommendations:'💯 Actions',email:'📧 Email'};
+const sectionKeys={summary:'PLABN_ENGLISH_SUMMARY',bullets:'KEY_INSIGHTS',recommendations:'RECOMMENDAIIONS',email:'EMAIL_FORMAT'};
+function renderOutput(t,o){const s={};o.forEach((k,i)=>{const h=sectionKeys[k],n=i<o.length-1?sectionKeys[o[i+1]]:null,p=t.indexOf(h);if(p===-1){s[k]=t;return}const e=n?t.indexOf(n):t.length;s[k]=t.slice(p+h.length,e>-1?e:t.length).replace(/^[:\s]+/,'').trim()});const tE=document.getElementById('outputTabs'),pE=document.getElementById('outputPanels');tE.innerHTML='';pE.innerHTML='';o.forEach((k,i)=>{const t=document.createElement('button');t.className='otab'+(i===0?' active':'');t.textContent=tabLabels[k];t.onclick=()=>{document.querySelectorAll('.otab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.otab-panel').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById('op-'+k).classList.add('active')};tE.appendChild(t);const p=document.createElement('div');p.className='otab-panel'+(i===0?' active':'');p.id='op-'+k;p.innerHTML=`<div class="output-text" id="ot-${k}">${s[k]||'—'}</div><button class="copy-btn" onclick="copyText('ot-${k}',this)">📋 Copy</button>`;pE.appendChild(p)});document.getElementById('outputCard').classList.add('visible');document.getElementById('outputCard').scrollIntoView({behavior:'smooth'})}
+function copyText(i,b){navigator.clipboard.writeText(document.getElementById(i).textContent).then(()=>{b.textContent='✅ Copied!';setTimeout(()=>b.textContent='📋 Copy',2000)})}
+function setLoading(o){document.getElementById('loader').classList.toggle('visible',o);const b=document.getElementById('genBtn');b.disabled=o;b.textContent=o?'⏳ Generating...':'✨ Generate Insights';if(o)document.getElementById('outputCard').classList.remove('visible')}
+function showErr(m){const b=document.getElementById('errorBox');b.textContent=m;b.classList.toggle('visible')}
+function setGateErr(m){document.getElementById('gateError').textContent=m}
+function logout(){localStorage.removeItem('ds_token');userToken='';location.reload()}
+function shareApp(){navigator.clipboard.writeText(window.location.origin).then(()=>alert('Link copied!'))}
+</script></body>
+</html>
