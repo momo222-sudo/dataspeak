@@ -132,6 +132,25 @@
     .output-text { font-size: 14px; line-height: 1.85; color: var(--text); white-space: pre-wrap; background: var(--surface2); border-radius: 10px; padding: 18px; border: 1px solid var(--border); min-height: 100px; }
     .copy-btn { margin-top: 12px; padding: 9px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
     .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .export-btn { margin-top: 8px; margin-left: 8px; padding: 9px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .export-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+    /* FINDING / ASSUMPTION badges */
+    .badge-finding { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #00ff8820; color: var(--accent); border: 1px solid #00ff8840; margin-right: 6px; vertical-align: middle; letter-spacing: 0.3px; }
+    .badge-assumption { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: #f7c94820; color: var(--gold); border: 1px solid #f7c94840; margin-right: 6px; vertical-align: middle; letter-spacing: 0.3px; }
+
+    /* TEMPLATE UI */
+    .template-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .template-bar select { flex: 1; min-width: 140px; }
+    .tmpl-btn { padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .tmpl-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    .tmpl-save-row { display: none; align-items: center; gap: 8px; margin-top: 10px; }
+    .tmpl-save-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; padding: 8px 12px; outline: none; }
+    .tmpl-save-row button { padding: 8px 16px; background: var(--accent2); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+    /* CONFIDENCE LEGEND */
+    .conf-legend { display: flex; gap: 16px; font-size: 11px; margin-bottom: 6px; flex-wrap: wrap; }
+    .conf-legend span { display: flex; align-items: center; gap: 5px; color: var(--muted); }
 
     /* UPGRADE MODAL */
     .modal-overlay { display: none; position: fixed; inset: 0; z-index: 1000; background: #000000aa; backdrop-filter: blur(6px); align-items: center; justify-content: center; padding: 24px; }
@@ -268,6 +287,23 @@
         </div>
       </div>
       <div style="padding:0 20px 22px;">
+
+        <!-- Templates -->
+        <div style="margin-bottom:14px;">
+          <label>Saved Templates</label>
+          <div class="template-bar">
+            <select id="templateSelect" onchange="loadTemplate(this.value)">
+              <option value="">— Load a saved template —</option>
+            </select>
+            <button class="tmpl-btn" onclick="showSaveTemplate()">💾 Save Current</button>
+            <button class="tmpl-btn" id="deleteTmplBtn" onclick="deleteTemplate()" style="display:none;color:var(--error);">🗑 Delete</button>
+          </div>
+          <div class="tmpl-save-row" id="tmplSaveRow">
+            <input type="text" id="tmplNameInput" placeholder="Template name (e.g. Weekly Sales Report)"/>
+            <button onclick="saveTemplate()">Save</button>
+          </div>
+        </div>
+
         <div class="context-row">
           <div>
             <label>What question were you answering?</label>
@@ -277,13 +313,40 @@
             <label>Audience</label>
             <select id="audienceSelect">
               <option value="executive">Executive / Manager</option>
-              <option value="professor">Professor / Grader</option>
-              <option value="client">Client</option>
+              <option value="ceo">CEO / Founder</option>
+              <option value="cfo">CFO / Finance Director</option>
+              <option value="board">Board of Directors</option>
+              <option value="client">External Client</option>
               <option value="team">Technical Team</option>
+              <option value="professor">Professor / Grader</option>
               <option value="general">General</option>
             </select>
           </div>
         </div>
+
+        <div class="context-row" style="margin-top:14px;">
+          <div>
+            <label>Industry (enables benchmarks)</label>
+            <select id="industrySelect">
+              <option value="other">— No benchmarks —</option>
+              <option value="saas">SaaS / Software</option>
+              <option value="ecommerce">E-commerce / Retail</option>
+              <option value="finance">Finance / Banking</option>
+              <option value="marketing">Marketing / Advertising</option>
+              <option value="operations">Operations / Logistics</option>
+              <option value="hr">HR / People</option>
+            </select>
+          </div>
+          <div>
+            <label>Tone</label>
+            <select id="toneSelect">
+              <option value="neutral">Neutral / Professional</option>
+              <option value="urgent">Urgent / Action Required</option>
+              <option value="reassuring">Reassuring / Positive</option>
+            </select>
+          </div>
+        </div>
+
         <div style="margin-top:18px;">
           <label>Output formats</label>
           <div class="output-options">
@@ -301,7 +364,16 @@
     <div class="loader" id="loader"><div class="spinner"></div><p>Analyzing your data and writing insights...</p></div>
 
     <div class="card output-card" id="outputCard">
-      <div class="card-header">✅ Your Insights — copy and use anywhere</div>
+      <div class="card-header" style="justify-content:space-between;">
+        <span>✅ Your Insights — copy and use anywhere</span>
+        <button class="export-btn" onclick="exportWord()" style="margin:0;padding:6px 14px;font-size:12px;">📄 Export Word</button>
+      </div>
+      <div style="padding:12px 22px 0;display:none;" id="confLegend">
+        <div class="conf-legend">
+          <span><span class="badge-finding">FINDING</span> Directly in the data</span>
+          <span><span class="badge-assumption">ASSUMPTION</span> Needs validation</span>
+        </div>
+      </div>
       <div class="output-tabs" id="outputTabs"></div>
       <div id="outputPanels"></div>
     </div>
@@ -354,6 +426,8 @@
 <script>
   let userToken = '', csvContent = '', currentSrc = 'sql', currentInputTab = 'paste';
   let userPlan = 'free', userUsage = 0, userLimit = 10;
+  let lastResult = '', lastAudience = '', lastIndustry = '';
+  let userTemplates = [];
 
   const placeholders = {
     sql: `region   | total_sales | customers\n---------+-------------+----------\nNorth    | 142500      | 500\nSouth    | 98300       | 500\nEast     | 201000      | 500`,
@@ -398,6 +472,7 @@
     document.getElementById('welcomeEmail').textContent = email;
     updateUsageUI();
     updatePlaceholder();
+    loadUserTemplates();
   }
 
   function updateUsageUI() {
@@ -509,11 +584,23 @@
     const outputs = Array.from(document.querySelectorAll('.opt-chip input:checked')).map(i => i.value);
     if (!outputs.length) { showErr('Select at least one output format.'); return; }
 
+    lastAudience = document.getElementById('audienceSelect').value;
+    lastIndustry = document.getElementById('industrySelect').value;
+
     showErr(''); setLoading(true);
     try {
       const res = await fetch('/api/generate', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ token: userToken, data: raw, context: document.getElementById('contextInput').value.trim(), audience: document.getElementById('audienceSelect').value, outputs, data_source: currentSrc })
+        body: JSON.stringify({
+          token: userToken,
+          data: raw,
+          context: document.getElementById('contextInput').value.trim(),
+          audience: lastAudience,
+          industry: lastIndustry,
+          tone: document.getElementById('toneSelect').value,
+          outputs,
+          data_source: currentSrc
+        })
       });
       const json = await res.json();
 
@@ -526,6 +613,7 @@
       if (json.error) { showErr(json.error); return; }
 
       if (json.usage !== undefined) { userUsage = json.usage; updateUsageUI(); }
+      lastResult = json.result;
       renderOutput(json.result, outputs);
     } catch(e) { showErr('Network error. Please try again.'); }
     finally { setLoading(false); }
@@ -533,6 +621,13 @@
 
   const tabLabels   = { summary:'📝 Summary', bullets:'💡 Insights', recommendations:'🎯 Actions', email:'📧 Email' };
   const sectionKeys = { summary:'PLAIN ENGLISH SUMMARY', bullets:'KEY INSIGHTS', recommendations:'RECOMMENDATIONS', email:'EMAIL FORMAT' };
+
+  function formatWithBadges(text) {
+    // Replace [FINDING] and [ASSUMPTION] tags with styled badges
+    return text
+      .replace(/\[FINDING\]/g, '<span class="badge-finding">FINDING</span>')
+      .replace(/\[ASSUMPTION\]/g, '<span class="badge-assumption">ASSUMPTION</span>');
+  }
 
   function renderOutput(text, outputs) {
     const sections = {};
@@ -543,6 +638,11 @@
       const e = nx ? text.indexOf(nx) : text.length;
       sections[key] = text.slice(s+h.length, e > -1 ? e : text.length).replace(/^[:\s]+/,'').trim();
     });
+
+    // Show confidence legend if findings/assumptions present
+    const hasConfidence = text.includes('[FINDING]') || text.includes('[ASSUMPTION]');
+    document.getElementById('confLegend').style.display = hasConfidence ? 'block' : 'none';
+
     const tabsEl = document.getElementById('outputTabs'), panelsEl = document.getElementById('outputPanels');
     tabsEl.innerHTML = ''; panelsEl.innerHTML = '';
     outputs.forEach((key, i) => {
@@ -552,15 +652,123 @@
       tabsEl.appendChild(tab);
       const panel = document.createElement('div');
       panel.className = 'otab-panel'+(i===0?' active':''); panel.id='op-'+key;
-      panel.innerHTML = `<div class="output-text" id="ot-${key}">${sections[key]||'—'}</div><button class="copy-btn" onclick="copyText('ot-${key}',this)">📋 Copy</button>`;
+      const rawText = sections[key] || '—';
+      const htmlText = formatWithBadges(rawText.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+      panel.innerHTML = `<div class="output-text" id="ot-${key}">${htmlText}</div><button class="copy-btn" onclick="copyRaw('${key}',this)">📋 Copy</button>`;
       panelsEl.appendChild(panel);
     });
+    // Store raw sections for copy
+    window._rawSections = sections;
     document.getElementById('outputCard').classList.add('visible');
     document.getElementById('outputCard').scrollIntoView({behavior:'smooth'});
   }
 
+  function copyRaw(key, btn) {
+    const text = (window._rawSections && window._rawSections[key]) || document.getElementById('ot-'+key).textContent;
+    navigator.clipboard.writeText(text).then(() => { btn.textContent='✅ Copied!'; setTimeout(()=>btn.textContent='📋 Copy',2000); });
+  }
+
+  // ── Export Word ───────────────────────────────────────────────────────────
+  async function exportWord() {
+    if (!lastResult) { alert('Generate a report first.'); return; }
+    const context = document.getElementById('contextInput').value.trim();
+    const title   = context || 'DataSpeak Report';
+    try {
+      const res = await fetch('/api/export/word', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: userToken, text: lastResult, title, audience: lastAudience, industry: lastIndustry })
+      });
+      if (!res.ok) { const j=await res.json(); alert(j.error||'Export failed'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `DataSpeak_Report_${new Date().toISOString().slice(0,10)}.docx`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch(e) { alert('Export failed: '+e.message); }
+  }
+
+  // ── Templates ─────────────────────────────────────────────────────────────
+  async function loadUserTemplates() {
+    if (!userToken) return;
+    try {
+      const res = await fetch('/api/templates/list', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token:userToken}) });
+      const json = await res.json();
+      if (json.templates) {
+        userTemplates = json.templates;
+        const sel = document.getElementById('templateSelect');
+        sel.innerHTML = '<option value="">— Load a saved template —</option>';
+        json.templates.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id; opt.textContent = t.name;
+          sel.appendChild(opt);
+        });
+      }
+    } catch(_) {}
+  }
+
+  function loadTemplate(id) {
+    const deleteBtn = document.getElementById('deleteTmplBtn');
+    if (!id) { deleteBtn.style.display='none'; return; }
+    const t = userTemplates.find(t => String(t.id) === String(id));
+    if (!t) return;
+    document.getElementById('audienceSelect').value = t.audience || 'executive';
+    document.getElementById('industrySelect').value = t.industry || 'other';
+    document.getElementById('toneSelect').value     = t.tone     || 'neutral';
+    document.getElementById('contextInput').value   = t.context  || '';
+    if (t.outputs && t.outputs.length) {
+      document.querySelectorAll('.opt-chip input').forEach(cb => {
+        cb.checked = t.outputs.includes(cb.value);
+        cb.closest('.opt-chip').classList.toggle('checked', cb.checked);
+      });
+    }
+    deleteBtn.style.display = 'inline-block';
+  }
+
+  function showSaveTemplate() {
+    const row = document.getElementById('tmplSaveRow');
+    row.style.display = row.style.display === 'flex' ? 'none' : 'flex';
+  }
+
+  async function saveTemplate() {
+    const name = document.getElementById('tmplNameInput').value.trim();
+    if (!name) { alert('Enter a template name.'); return; }
+    const outputs = Array.from(document.querySelectorAll('.opt-chip input:checked')).map(i=>i.value);
+    try {
+      const res = await fetch('/api/templates/save', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          token: userToken, name,
+          audience: document.getElementById('audienceSelect').value,
+          industry: document.getElementById('industrySelect').value,
+          tone:     document.getElementById('toneSelect').value,
+          context:  document.getElementById('contextInput').value.trim(),
+          outputs
+        })
+      });
+      const json = await res.json();
+      if (json.ok) {
+        document.getElementById('tmplSaveRow').style.display = 'none';
+        document.getElementById('tmplNameInput').value = '';
+        await loadUserTemplates();
+      } else {
+        alert(json.error || 'Save failed');
+      }
+    } catch(e) { alert('Save failed: '+e.message); }
+  }
+
+  async function deleteTemplate() {
+    const sel = document.getElementById('templateSelect');
+    const id  = sel.value;
+    if (!id || !confirm('Delete this template?')) return;
+    try {
+      await fetch('/api/templates/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token:userToken, id}) });
+      await loadUserTemplates();
+      document.getElementById('deleteTmplBtn').style.display = 'none';
+    } catch(_) {}
+  }
+
   function copyText(id, btn) {
-    navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => { btn.textContent='✅ Copied!'; setTimeout(()=>btn.textContent='📋 Copy',2000); });
+    navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => { btn.textContent='✅ Copied!'; setTimeout(()=>btn.textContent='📋 Copy',2000); });
   }
   function setLoading(on) {
     document.getElementById('loader').classList.toggle('visible',on);
