@@ -1,6 +1,6 @@
-import os, sqlite3, secrets, json
+import os, sqlite3, secrets, json, io
 from datetime import datetime, date
-from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import Flask, request, jsonify, send_from_directory, redirect, send_file
 import anthropic
 from dotenv import load_dotenv
 
@@ -16,6 +16,54 @@ APP_URL              = os.environ.get('APP_URL', 'https://dataspeak-vydp.onrende
 DB_PATH              = 'users.db'
 
 FREE_LIMIT = 10   # analyses per month on free plan
+
+# ── Industry benchmarks ───────────────────────────────────────────────────────
+INDUSTRY_BENCHMARKS = {
+    'saas': """SaaS Industry Benchmarks (reference these when interpreting the data):
+- Monthly churn rate: excellent <1%, healthy <2%, concerning >5%
+- Net Revenue Retention (NRR): world-class >130%, excellent >110%, good >100%
+- CAC Payback Period: excellent <12 months, good <18 months
+- Gross Margin: typical 70-85%
+- MoM MRR growth: strong >10%, healthy 5-10%
+- LTV:CAC ratio: excellent >3:1""",
+
+    'ecommerce': """E-commerce Industry Benchmarks (reference these when interpreting the data):
+- Conversion rate: average 1-3%, strong >3%, excellent >5%
+- Cart abandonment rate: average 70%, good <65%, excellent <55%
+- Customer return rate: good >30%, excellent >45%
+- Gross margin: typical 40-60% for physical goods
+- Email open rate: average 15-25%
+- Average order value growth: target >5% QoQ""",
+
+    'finance': """Finance Industry Benchmarks (reference these when interpreting the data):
+- Operating expense ratio: lower is better, varies widely by sub-sector
+- Return on Assets (ROA): good >1%, excellent >2%
+- Net Interest Margin: typical 2-4% for banks
+- Cost-to-Income ratio: efficient <50%, concerning >70%
+- Loan-to-Deposit ratio: healthy 80-90%""",
+
+    'marketing': """Marketing Industry Benchmarks (reference these when interpreting the data):
+- Email open rate: average 20-25%, strong >30%
+- Click-through rate (CTR): average 2-5%, strong >5%
+- Lead-to-customer conversion: good >10%, excellent >20%
+- Cost per lead (CPL): varies by channel; lower is better
+- Marketing ROI: good >5:1, excellent >10:1
+- Social media engagement rate: average 1-3%""",
+
+    'operations': """Operations Industry Benchmarks (reference these when interpreting the data):
+- On-time delivery rate: good >95%, excellent >98%
+- Inventory turnover: higher is generally better (industry-specific)
+- Order accuracy rate: good >98%, excellent >99.5%
+- First-pass yield: good >95%
+- Employee productivity: compare against prior periods for trends""",
+
+    'hr': """HR Industry Benchmarks (reference these when interpreting the data):
+- Employee turnover rate: healthy <10%, concerning >20%
+- Time-to-hire: good <30 days, excellent <21 days
+- Offer acceptance rate: strong >90%
+- Employee engagement score: good >70%, excellent >80%
+- Absenteeism rate: healthy <2%""",
+}
 
 # ── Database ──────────────────────────────────────────────────────────────────
 def get_db():
@@ -39,7 +87,20 @@ def init_db():
                 created_at           TEXT DEFAULT (datetime('now'))
             )
         ''')
-        # Migrate older DBs that may lack new columns
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS templates (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER NOT NULL,
+                name        TEXT NOT NULL,
+                audience    TEXT DEFAULT 'executive',
+                industry    TEXT DEFAULT 'other',
+                tone        TEXT DEFAULT 'neutral',
+                context     TEXT DEFAULT '',
+                outputs     TEXT DEFAULT '["summary","bullets","recommendations","email"]',
+                created_at  TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        ''')
         cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
         migrations = {
             'plan':                   "ALTER TABLE users ADD COLUMN plan TEXT DEFAULT 'free'",
@@ -57,11 +118,8 @@ init_db()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def reset_usage_if_needed(db, user):
-    """Reset monthly usage counter if we're in a new month."""
     this_month = date.today().strftime('%Y-%m')
     if user['usage_reset_month'] != this_month:
-        # If month was never set (empty string = existing user pre-migration),
-        # just stamp the current month without wiping their count.
         if not user['usage_reset_month']:
             db.execute('UPDATE users SET usage_reset_month=? WHERE id=?',
                        (this_month, user['id']))
@@ -80,6 +138,10 @@ def user_can_generate(user):
         return False, f'Free limit reached ({FREE_LIMIT}/month). Upgrade to Pro for unlimited analyses.'
     return True, None
 
+def get_user_by_token(token):
+    with get_db() as db:
+        return db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
@@ -89,7 +151,6 @@ def index():
 def static_files(path):
     return send_from_directory(app.static_folder, path)
 
-# Sign up / sign in
 @app.route('/api/signup', methods=['POST'])
 def signup():
     data   = request.json or {}
@@ -107,7 +168,6 @@ def signup():
                 'token': existing['token'], 'email': email, 'returning': True,
                 'plan': existing['plan'], 'usage': usage, 'limit': FREE_LIMIT
             })
-
         token = secrets.token_urlsafe(32)
         db.execute('INSERT INTO users (email, token, source) VALUES (?, ?, ?)',
                    (email, token, source))
@@ -116,7 +176,6 @@ def signup():
     return jsonify({'token': token, 'email': email, 'returning': False,
                     'plan': 'free', 'usage': 0, 'limit': FREE_LIMIT})
 
-# Status check — also returns plan + usage for the frontend
 @app.route('/api/status', methods=['POST'])
 def status():
     data  = request.json or {}
@@ -135,7 +194,6 @@ def status():
         'plan': user['plan'], 'usage': usage, 'limit': FREE_LIMIT
     })
 
-# Admin stats
 @app.route('/api/admin/stats')
 def admin_stats():
     with get_db() as db:
@@ -145,11 +203,182 @@ def admin_stats():
         recent = db.execute('SELECT email, plan, created_at FROM users ORDER BY created_at DESC LIMIT 10').fetchall()
     return jsonify({
         'total_signups': total, 'today': today, 'pro_users': pro,
-        'mrr_estimate': pro * 5,
-        'recent': [{'email': r['email'], 'plan': r['plan']} for r in recent]
+        'mrr_estimate': pro * 9,
+        'recent': [{'email': r['email'], 'plan': r['plan'], 'joined': r['created_at']} for r in recent]
     })
 
-# ── Stripe: create checkout session ──────────────────────────────────────────
+# ── Templates ─────────────────────────────────────────────────────────────────
+@app.route('/api/templates/save', methods=['POST'])
+def save_template():
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    name    = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Template name required.'}), 400
+
+    audience = data.get('audience', 'executive')
+    industry = data.get('industry', 'other')
+    tone     = data.get('tone', 'neutral')
+    context  = data.get('context', '')
+    outputs  = json.dumps(data.get('outputs', ['summary', 'bullets', 'recommendations', 'email']))
+
+    with get_db() as db:
+        existing = db.execute(
+            'SELECT id FROM templates WHERE user_id=? AND name=?', (user['id'], name)
+        ).fetchone()
+        if existing:
+            db.execute(
+                'UPDATE templates SET audience=?, industry=?, tone=?, context=?, outputs=? WHERE id=?',
+                (audience, industry, tone, context, outputs, existing['id'])
+            )
+        else:
+            db.execute(
+                'INSERT INTO templates (user_id, name, audience, industry, tone, context, outputs) VALUES (?,?,?,?,?,?,?)',
+                (user['id'], name, audience, industry, tone, context, outputs)
+            )
+        db.commit()
+
+    return jsonify({'ok': True, 'name': name})
+
+@app.route('/api/templates/list', methods=['POST'])
+def list_templates():
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    with get_db() as db:
+        rows = db.execute(
+            'SELECT * FROM templates WHERE user_id=? ORDER BY created_at DESC LIMIT 20',
+            (user['id'],)
+        ).fetchall()
+
+    return jsonify({'templates': [{
+        'id': r['id'], 'name': r['name'], 'audience': r['audience'],
+        'industry': r['industry'], 'tone': r['tone'],
+        'context': r['context'], 'outputs': json.loads(r['outputs'])
+    } for r in rows]})
+
+@app.route('/api/templates/delete', methods=['POST'])
+def delete_template():
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    with get_db() as db:
+        db.execute('DELETE FROM templates WHERE id=? AND user_id=?', (data.get('id'), user['id']))
+        db.commit()
+
+    return jsonify({'ok': True})
+
+# ── Export: Word doc ──────────────────────────────────────────────────────────
+@app.route('/api/export/word', methods=['POST'])
+def export_word():
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    text     = data.get('text', '')
+    title    = data.get('title', 'DataSpeak Report')
+    audience = data.get('audience', '')
+    industry = data.get('industry', '')
+
+    try:
+        from docx import Document
+        from docx.shared import Pt, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+        doc = Document()
+
+        heading = doc.add_heading(title, 0)
+        heading.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        if heading.runs:
+            heading.runs[0].font.color.rgb = RGBColor(0x1a, 0x56, 0xdb)
+
+        meta_parts = []
+        if audience:
+            meta_parts.append(f'Audience: {audience}')
+        if industry and industry != 'other':
+            meta_parts.append(f'Industry: {industry.title()}')
+        meta_parts.append(f'Generated: {date.today().strftime("%B %d, %Y")}')
+        meta_parts.append('Generated by DataSpeak')
+
+        meta = doc.add_paragraph(' · '.join(meta_parts))
+        if meta.runs:
+            meta.runs[0].font.size = Pt(9)
+            meta.runs[0].font.color.rgb = RGBColor(0x6b, 0x7f, 0xa3)
+
+        doc.add_paragraph()
+
+        section_headers = ['PLAIN ENGLISH SUMMARY', 'KEY INSIGHTS', 'RECOMMENDATIONS', 'EMAIL FORMAT']
+        lines = text.split('\n')
+
+        for line in lines:
+            line = line.rstrip()
+            if not line:
+                continue
+
+            is_header = False
+            for h in section_headers:
+                if line.upper().startswith(h):
+                    p = doc.add_heading(h, level=1)
+                    if p.runs:
+                        p.runs[0].font.color.rgb = RGBColor(0x1a, 0x56, 0xdb)
+                    is_header = True
+                    break
+
+            if is_header:
+                continue
+
+            if line.startswith('- '):
+                content = line[2:].strip()
+                if '[FINDING]' in content:
+                    content = content.replace('[FINDING]', '').strip()
+                    p = doc.add_paragraph(style='List Bullet')
+                    run = p.add_run('FINDING  ')
+                    run.bold = True
+                    run.font.color.rgb = RGBColor(0x00, 0x99, 0x66)
+                    p.add_run(content)
+                elif '[ASSUMPTION]' in content:
+                    content = content.replace('[ASSUMPTION]', '').strip()
+                    p = doc.add_paragraph(style='List Bullet')
+                    run = p.add_run('ASSUMPTION  ')
+                    run.bold = True
+                    run.font.color.rgb = RGBColor(0xd2, 0x99, 0x22)
+                    p.add_run(content)
+                else:
+                    p = doc.add_paragraph(style='List Bullet')
+                    p.add_run(content)
+            else:
+                doc.add_paragraph(line)
+
+        doc.add_paragraph()
+        footer_p = doc.add_paragraph('Generated by DataSpeak — dataspeak-vydp.onrender.com')
+        if footer_p.runs:
+            footer_p.runs[0].font.size = Pt(8)
+            footer_p.runs[0].font.color.rgb = RGBColor(0x6b, 0x7f, 0xa3)
+
+        buf = io.BytesIO()
+        doc.save(buf)
+        buf.seek(0)
+
+        filename = f'DataSpeak_Report_{date.today().strftime("%Y%m%d")}.docx'
+        return send_file(buf, as_attachment=True, download_name=filename,
+                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ── Stripe: checkout session ──────────────────────────────────────────────────
 @app.route('/api/create-checkout-session', methods=['POST'])
 def create_checkout():
     _stripe_key   = os.environ.get('STRIPE_SECRET_KEY', '')
@@ -168,7 +397,6 @@ def create_checkout():
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
     if not user:
         return jsonify({'error': 'Invalid token.'}), 401
-
     if user['plan'] == 'pro':
         return jsonify({'error': 'Already on Pro plan.'}), 400
 
@@ -179,8 +407,7 @@ def create_checkout():
             customer = stripe.Customer.create(email=user['email'])
             customer_id = customer.id
             with get_db() as db:
-                db.execute('UPDATE users SET stripe_customer_id=? WHERE token=?',
-                           (customer_id, token))
+                db.execute('UPDATE users SET stripe_customer_id=? WHERE token=?', (customer_id, token))
                 db.commit()
 
         session = stripe.checkout.Session.create(
@@ -196,7 +423,7 @@ def create_checkout():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Stripe: billing portal (manage/cancel) ───────────────────────────────────
+# ── Stripe: billing portal ────────────────────────────────────────────────────
 @app.route('/api/billing-portal', methods=['POST'])
 def billing_portal():
     _stripe_key = os.environ.get('STRIPE_SECRET_KEY', '')
@@ -245,28 +472,19 @@ def stripe_webhook():
     data  = event['data']['object']
 
     if etype in ('customer.subscription.created', 'customer.subscription.updated'):
-        status_val = data.get('status')
-        active     = status_val in ('active', 'trialing')
-        cust_id    = data.get('customer')
-        sub_id     = data.get('id')
-        plan       = 'pro' if active else 'free'
+        active  = data.get('status') in ('active', 'trialing')
+        plan    = 'pro' if active else 'free'
         with get_db() as db:
             db.execute(
                 'UPDATE users SET plan=?, stripe_subscription_id=? WHERE stripe_customer_id=?',
-                (plan, sub_id, cust_id)
+                (plan, data.get('id'), data.get('customer'))
             )
             db.commit()
 
-    elif etype == 'customer.subscription.deleted':
-        cust_id = data.get('customer')
+    elif etype in ('customer.subscription.deleted', 'invoice.payment_failed'):
         with get_db() as db:
-            db.execute('UPDATE users SET plan=? WHERE stripe_customer_id=?', ('free', cust_id))
-            db.commit()
-
-    elif etype == 'invoice.payment_failed':
-        cust_id = data.get('customer')
-        with get_db() as db:
-            db.execute('UPDATE users SET plan=? WHERE stripe_customer_id=?', ('free', cust_id))
+            db.execute('UPDATE users SET plan=? WHERE stripe_customer_id=?',
+                       ('free', data.get('customer')))
             db.commit()
 
     return jsonify({'received': True})
@@ -284,7 +502,6 @@ def generate():
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
         if not user:
             return jsonify({'error': 'Invalid token. Please sign in again.'}), 401
-
         reset_usage_if_needed(db, user)
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
         can, err = user_can_generate(user)
@@ -294,7 +511,9 @@ def generate():
 
     raw_data    = (data.get('data') or '').strip()
     context     = (data.get('context') or '').strip()
-    audience    = data.get('audience', 'general')
+    audience    = data.get('audience', 'executive')
+    industry    = data.get('industry', 'other')
+    tone        = data.get('tone', 'neutral')
     outputs     = data.get('outputs', ['summary', 'bullets', 'recommendations', 'email'])
     data_source = data.get('data_source', 'sql')
 
@@ -317,37 +536,65 @@ def generate():
     elif data_source == 'python':
         stat_terms = 'Reference pandas/numpy conventions where applicable.'
 
+    tone_instructions = {
+        'urgent':     'Write with urgency. Highlight risks, gaps, and required immediate action. Use direct, assertive language.',
+        'reassuring': 'Write with a calm, measured tone. Acknowledge challenges but emphasise positives, progress, and the plan forward.',
+        'neutral':    'Write with a balanced, objective, professional tone.',
+    }
+    tone_instr = tone_instructions.get(tone, tone_instructions['neutral'])
+
+    audience_labels = {
+        'ceo':       'CEO / Founder (focus on strategic impact, growth, and big-picture risk)',
+        'cfo':       'CFO / Finance Director (focus on financial performance, cost, and ROI)',
+        'executive': 'Executive / Senior Manager (professional, high-level, action-oriented)',
+        'client':    'External Client (professional, clear, no internal jargon)',
+        'team':      'Technical Team (can include data details and technical specifics)',
+        'board':     'Board of Directors (formal, concise, strategic risk and opportunity focus)',
+        'general':   'General audience (clear, plain English, minimal jargon)',
+        'professor': 'Professor / Academic Grader (rigorous, evidence-based, structured)',
+    }
+    audience_label = audience_labels.get(audience, audience)
+    benchmarks_text = INDUSTRY_BENCHMARKS.get(industry, '')
+
     output_instructions = {
-        'summary':         'PLAIN ENGLISH SUMMARY: Write 2-3 clear sentences explaining what this data shows in simple language any professional can understand.',
-        'bullets':         'KEY INSIGHTS: List 5-7 bullet points of the most important findings, trends, anomalies, or patterns in the data.',
-        'recommendations': 'RECOMMENDATIONS: Provide 3-5 specific, actionable recommendations based on what the data reveals.',
-        'email':           f'EMAIL FORMAT: Write a professional email to a {audience} sharing these findings. Include: Subject line, greeting, key findings (3-4 sentences), what it means, recommended next steps, and a sign-off.'
+        'summary':         'PLAIN ENGLISH SUMMARY: Write 2-3 clear sentences explaining what this data shows. No jargon.',
+        'bullets':         'KEY INSIGHTS: List 5-7 bullet points. For each, prefix with [FINDING] if directly supported by the data, or [ASSUMPTION] if it is a reasonable inference requiring validation.',
+        'recommendations': 'RECOMMENDATIONS: Provide 3-5 specific, actionable recommendations. For each, prefix with [FINDING] if directly supported or [ASSUMPTION] if inferred.',
+        'email':           f'EMAIL FORMAT: Write a professional email to a {audience_label} sharing these findings. Include: Subject line, greeting, key findings (3-4 sentences), what it means, recommended next steps, and a sign-off.',
     }
 
     sections = '\n\n'.join(output_instructions[o] for o in outputs if o in output_instructions)
 
-    prompt = f"""You are an expert data analyst. Analyze the following {source_context} and provide clear, professional insights.
+    prompt = f"""You are an expert data analyst and business communication specialist. Analyze the following {source_context} and produce a professional report.
 
 DATA:
 {raw_data}
 
 {f'BUSINESS/RESEARCH QUESTION: {context}' if context else ''}
-AUDIENCE: {audience}
+AUDIENCE: {audience_label}
+TONE: {tone_instr}
 {stat_terms}
+{benchmarks_text}
 
 Provide the following outputs using the EXACT section headers shown below:
 
 {sections}
 
-Be specific — reference actual numbers, values, and patterns from the data. Write like a senior analyst explaining to a real person.
+CONFIDENCE SCORING RULES (apply to bullets and recommendations):
+- [FINDING] = directly and clearly supported by numbers in the data
+- [ASSUMPTION] = reasonable inference not directly stated in the data, requiring further validation
 
-FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), no ## or ### headers. For lists use a dash and space (- item). Write section headers exactly as shown above in plain uppercase."""
+Where industry benchmarks are provided, compare the data against them and call out whether metrics are above, below, or in line with benchmark.
+
+Be specific — reference actual numbers and patterns. Write like a senior analyst presenting to real decision-makers.
+
+FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), no ## or ### headers. For bullet lists use a dash and space (- item). Write section headers exactly as shown above in plain uppercase."""
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
             model='claude-haiku-4-5-20251001',
-            max_tokens=1800,
+            max_tokens=2000,
             messages=[{'role': 'user', 'content': prompt}]
         )
         with get_db() as db:
