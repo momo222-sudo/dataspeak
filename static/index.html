@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>DataSpeak — Turn Raw Data Into Clear Insights</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #0d0f1a;
@@ -20,6 +23,46 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    h1, h2, h3, .logo, .signup-box h2, .gate h1 { font-family: 'Poppins', 'Inter', system-ui, sans-serif; }
+
+    /* ── BRIGHT HERO (GATE) ─────────────────────────────────────────────── */
+    .gate {
+      background: linear-gradient(160deg, #f4f7ff 0%, #eef3ff 45%, #fdf6e8 100%);
+      color: #1a1f36;
+      min-height: calc(100vh - 54px);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      align-items: center;
+      gap: 48px;
+      padding: 64px 6vw;
+      text-align: left;
+    }
+    .gate-content { display: flex; flex-direction: column; align-items: flex-start; }
+    .gate-visual { display: flex; align-items: center; justify-content: center; }
+    .gate-visual svg { width: 100%; max-width: 480px; height: auto; filter: drop-shadow(0 24px 48px rgba(79,142,247,0.18)); }
+    .gate .hero-badge { background: #ffffff; border: 1px solid #e1e8fb; color: #c8941f; box-shadow: 0 4px 16px rgba(247,201,72,0.15); }
+    .gate h1 { color: #161a30; }
+    .gate h1 span { color: var(--accent2); background: linear-gradient(135deg, #4f8ef7, #845ef7); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .gate-sub { color: #5b6786; max-width: 540px; }
+    .gate .signup-box { background: #ffffff; border: 1px solid #e7ecfb; box-shadow: 0 20px 60px rgba(40,60,120,0.10); color: #1a1f36; }
+    .gate .signup-box h2 { color: #161a30; }
+    .gate .signup-box p { color: #6b7aa0; }
+    .gate .oauth-btn { background: #f5f7fd; border-color: #e1e8fb; color: #1a1f36; }
+    .gate .oauth-divider { color: #9aa6c4; }
+    .gate .oauth-divider::before, .gate .oauth-divider::after { background: #e7ecfb; }
+    .gate .email-row input { background: #f5f7fd; border-color: #e1e8fb; color: #1a1f36; }
+    .gate .perk { color: #5b6786; }
+    .gate .gate-note { color: #6b7aa0; }
+    .gate .feature-strip { max-width: none; }
+    .gate .feature-item { background: #ffffff; border: 1px solid #e7ecfb; box-shadow: 0 8px 24px rgba(40,60,120,0.06); }
+    .gate .feature-item .fi-title { color: #1a1f36; }
+    .gate .feature-item .fi-desc { color: #6b7aa0; }
+    @media (max-width: 900px) {
+      .gate { grid-template-columns: 1fr; text-align: center; padding: 40px 6vw 56px; gap: 32px; }
+      .gate-content { align-items: center; }
+      .gate-visual { order: -1; }
+      .gate-visual svg { max-width: 320px; }
+    }
 
     /* NAV */
     nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 28px; height: 54px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
@@ -33,10 +76,8 @@
     .nav-signout:hover { color: var(--text); }
 
     /* GATE */
-    .gate { min-height: calc(100vh - 54px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; }
-    .gate h1 { font-size: clamp(32px,6vw,60px); font-weight: 900; color: var(--text); line-height: 1.15; margin-bottom: 16px; }
-    .gate h1 span { color: var(--accent); }
-    .gate-sub { font-size: 16px; color: var(--muted); max-width: 520px; line-height: 1.6; margin-bottom: 36px; }
+    .gate h1 { font-size: clamp(32px,6vw,60px); font-weight: 900; line-height: 1.15; margin-bottom: 16px; }
+    .gate-sub { font-size: 16px; line-height: 1.6; margin-bottom: 36px; }
     .signup-box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; max-width: 480px; width: 100%; text-align: left; }
     .signup-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
     .signup-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
@@ -262,6 +303,7 @@
 
 <!-- GATE -->
 <section class="gate" id="gate">
+<div class="gate-content">
   <div class="hero-badge">✨ AI-powered analysis · confidence-scored · in seconds</div>
   <h1>Raw data in.<br><span>Clear words out.</span></h1>
   <p class="gate-sub">Paste your SQL results, R output, Python DataFrame, or Excel data — get professional insights, red flags, comparisons, and shareable reports in seconds.</p>
@@ -302,6 +344,50 @@
     <div class="feature-item"><div class="fi-icon">🔗</div><div class="fi-title">Share</div><div class="fi-desc">Branded public report links</div></div>
     <div class="feature-item"><div class="fi-icon">📑</div><div class="fi-title">Export</div><div class="fi-desc">Word docs & PowerPoint decks</div></div>
   </div>
+</div>
+
+<div class="gate-visual">
+  <svg viewBox="0 0 480 420" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="480" height="420" rx="28" fill="#ffffff"/>
+    <rect x="0" y="0" width="480" height="420" rx="28" fill="none" stroke="#e7ecfb" stroke-width="2"/>
+
+    <!-- header row -->
+    <circle cx="34" cy="34" r="6" fill="#ff5f72"/>
+    <circle cx="54" cy="34" r="6" fill="#f7c948"/>
+    <circle cx="74" cy="34" r="6" fill="#00d48a"/>
+    <rect x="300" y="22" width="150" height="24" rx="12" fill="#f0f4ff"/>
+    <text x="375" y="38" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#4f8ef7">+18.2% MoM</text>
+
+    <!-- bar chart -->
+    <g>
+      <rect x="34" y="200" width="34" height="160" rx="6" fill="#dbe6ff"/>
+      <rect x="84" y="160" width="34" height="200" rx="6" fill="#bfd3ff"/>
+      <rect x="134" y="120" width="34" height="240" rx="6" fill="#8fb4ff"/>
+      <rect x="184" y="90"  width="34" height="270" rx="6" fill="#4f8ef7"/>
+      <rect x="234" y="60"  width="34" height="300" rx="6" fill="#845ef7"/>
+    </g>
+
+    <!-- line chart overlay -->
+    <polyline points="34,300 84,260 134,230 184,190 234,140 284,170 334,110 384,90 434,60"
+              fill="none" stroke="#00d48a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#00d48a">
+      <circle cx="34" cy="300" r="5"/>
+      <circle cx="134" cy="230" r="5"/>
+      <circle cx="234" cy="140" r="5"/>
+      <circle cx="334" cy="110" r="5"/>
+      <circle cx="434" cy="60" r="5"/>
+    </g>
+
+    <!-- axis line -->
+    <line x1="24" y1="360" x2="456" y2="360" stroke="#e7ecfb" stroke-width="2"/>
+
+    <!-- floating insight badges -->
+    <rect x="24" y="380" width="160" height="28" rx="14" fill="#eafff5"/>
+    <text x="38" y="398" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#00a86b">✓ FINDING: Revenue up</text>
+    <rect x="290" y="380" width="166" height="28" rx="14" fill="#fff7e6"/>
+    <text x="304" y="398" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#c8941f">◆ ASSUMPTION: Seasonal</text>
+  </svg>
+</div>
 </section>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -745,7 +831,7 @@
     setLoader(false);
   }
 
-  // ── Generate ──────────────────────────────────────────────────────────────
+  // ── Generate ─────────────────────────────────────────────────────────────
   async function generate() {
     if (userPlan === 'free' && userUsage >= userLimit) { openUpgrade(); return; }
     const raw = currentInputTab === 'paste' ? document.getElementById('dataInput').value.trim() : csvContent;
@@ -783,7 +869,7 @@
     finally { setLoader(false); }
   }
 
-  // ── Compare ───────────────────────────────────────────────────────────────
+  // ── Compare ──────────────────────────────────────────────────────────────
   async function compare() {
     if (userPlan === 'free' && userUsage >= userLimit) { openUpgrade(); return; }
     const d1 = document.getElementById('compareData1').value.trim();
@@ -818,7 +904,7 @@
     finally { setLoader(false); }
   }
 
-  // ── Render output ─────────────────────────────────────────────────────────
+  // ── Render output ────────────────────────────────────────────────────────
   const SECTION_KEYS = {
     summary:'PLAIN ENGLISH SUMMARY', bullets:'KEY INSIGHTS', recommendations:'RECOMMENDATIONS', email:'EMAIL FORMAT',
     'comparison summary':'COMPARISON SUMMARY', 'key differences':'KEY DIFFERENCES',
@@ -903,7 +989,7 @@
     });
   }
 
-  // ── Chat ──────────────────────────────────────────────────────────────────
+  // ── Chat ─────────────────────────────────────────────────────────────────
   async function sendChat() {
     const q = document.getElementById('chatInput').value.trim();
     if (!q || !userToken || !lastResult) return;
@@ -934,7 +1020,7 @@
     }
   }
 
-  // ── Export ────────────────────────────────────────────────────────────────
+  // ── Export ───────────────────────────────────────────────────────────────
   async function exportWord() {
     if (!lastResult) { alert('Generate a report first.'); return; }
     const res  = await fetch('/api/export/word', {
@@ -984,7 +1070,7 @@
   }
   function today() { return new Date().toISOString().slice(0,10); }
 
-  // ── Templates ─────────────────────────────────────────────────────────────
+  // ── Templates ───────────────────────────────────────────────────────────
   async function loadUserTemplates() {
     if (!userToken) return;
     try {
@@ -1055,7 +1141,7 @@
     document.getElementById('deleteTmplBtn').style.display = 'none';
   }
 
-  // ── UI helpers ────────────────────────────────────────────────────────────
+  // ── UI helpers ───────────────────────────────────────────────────────────
   function setLoader(on, msg) {
     document.getElementById('loader').classList.toggle('visible', on);
     if (msg) document.getElementById('loaderText').textContent = msg;
@@ -1066,7 +1152,7 @@
   function showErr(msg) { const b=document.getElementById('errorBox'); b.textContent=msg; b.classList.toggle('visible',!!msg); }
   function showCmpErr(msg) { const b=document.getElementById('cmpErrorBox'); b.textContent=msg; b.classList.toggle('visible',!!msg); }
 
-  // ── Upgrade modal ─────────────────────────────────────────────────────────
+  // ── Upgrade modal ────────────────────────────────────────────────────────
   function openUpgrade()  { document.getElementById('upgradeModal').classList.add('open'); }
   function closeUpgrade() { document.getElementById('upgradeModal').classList.remove('open'); }
   async function startCheckout() {
@@ -1089,7 +1175,7 @@
     } catch(e) { alert('Network error.'); }
   }
 
-  // ── Drag & drop CSV ───────────────────────────────────────────────────────
+  // ── Drag & drop CSV ──────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const zone = document.getElementById('tab-csv');
     if (zone) {
