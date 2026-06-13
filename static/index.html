@@ -395,6 +395,41 @@
   <div style="max-width:1100px;margin:0 auto;">
     <h2 style="font-family:'Poppins','Inter',sans-serif;font-size:clamp(24px,4vw,36px);font-weight:800;text-align:center;color:#1a1f36;margin-bottom:12px;">See it in action</h2>
     <p style="text-align:center;color:#5b6786;font-size:15px;max-width:600px;margin:0 auto 40px;line-height:1.6;">The exact same data, before and after DataSpeak — no extra work on your part.</p>
+
+    <div style="background:#f7f9ff;border:1px solid #e7ecfb;border-radius:16px;padding:24px;margin-bottom:32px;">
+      <div style="font-size:12px;font-weight:800;letter-spacing:0.05em;color:#8a93b3;margin-bottom:12px;">TRY IT LIVE — NO SIGNUP REQUIRED</div>
+      <p style="font-size:13px;color:#5b6786;margin-bottom:14px;">Ask a question about the sample revenue/signups dataset above and get a real AI-generated answer, right now.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+        <button onclick="demoAsk('What was the revenue growth from January to June?')" style="background:#fff;border:1px solid #e7ecfb;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:#3a4156;cursor:pointer;">Revenue growth Jan → Jun?</button>
+        <button onclick="demoAsk('Which month had the best signup-to-revenue ratio?')" style="background:#fff;border:1px solid #e7ecfb;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:#3a4156;cursor:pointer;">Best signup-to-revenue month?</button>
+        <button onclick="demoAsk('Are there any red flags in this data?')" style="background:#fff;border:1px solid #e7ecfb;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;color:#3a4156;cursor:pointer;">Any red flags?</button>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <input id="demoQInput" type="text" placeholder="Or type your own question..." style="flex:1;padding:10px 14px;border:1px solid #e7ecfb;border-radius:10px;font-size:14px;font-family:inherit;" onkeydown="if(event.key==='Enter') demoAsk()"/>
+        <button onclick="demoAsk()" id="demoAskBtn" style="background:linear-gradient(135deg,#f7c948,#e6b800);color:#1a1200;font-weight:800;border:none;border-radius:10px;padding:10px 22px;font-size:14px;cursor:pointer;white-space:nowrap;">Ask →</button>
+      </div>
+      <div id="demoAnswer" style="margin-top:14px;font-size:13px;color:#3a4156;line-height:1.7;"></div>
+    </div>
+    <script>
+      async function demoAsk(presetQ){
+        const input = document.getElementById('demoQInput');
+        const q = (typeof presetQ === 'string' && presetQ) ? presetQ : input.value.trim();
+        if(!q) return;
+        if(typeof presetQ === 'string' && presetQ) input.value = presetQ;
+        const out = document.getElementById('demoAnswer');
+        const btn = document.getElementById('demoAskBtn');
+        out.textContent = 'Thinking...';
+        btn.disabled = true;
+        try{
+          const res = await fetch('/api/demo-query', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({question:q})});
+          const json = await res.json();
+          out.textContent = json.error ? json.error : json.answer;
+        }catch(e){
+          out.textContent = 'Something went wrong. Please try again.';
+        }
+        btn.disabled = false;
+      }
+    </script>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch;">
       <div style="background:#f7f9ff;border:1px solid #e7ecfb;border-radius:16px;padding:24px;">
         <div style="font-size:12px;font-weight:800;letter-spacing:0.05em;color:#8a93b3;margin-bottom:12px;">BEFORE — RAW SQL OUTPUT</div>
