@@ -1,4 +1,4 @@
-import os, sqlite3, secrets, json, io
+import os, sqlite3, secrets, json, io, time
 from datetime import datetime, date
 from flask import Flask, request, jsonify, send_from_directory, redirect, send_file
 import anthropic
@@ -17,6 +17,18 @@ GOOGLE_CLIENT_ID     = os.environ.get('GOOGLE_CLIENT_ID', '')
 DB_PATH              = 'users.db'
 
 FREE_LIMIT = 10   # analyses per month on free plan
+
+# ── Public no-signup live demo ────────────────────────────────────────────────
+DEMO_DATA = """month,revenue,signups
+2024-01,142500,312
+2024-02,151200,298
+2024-03,168400,355
+2024-04,175900,340
+2024-05,198300,401
+2024-06,231000,452"""
+
+_demo_rate_limit = {}  # ip -> list of request timestamps
+DEMO_LIMIT_PER_HOUR = 8
 
 # ── Industry benchmarks ───────────────────────────────────────────────────────
 INDUSTRY_BENCHMARKS = {
@@ -507,6 +519,54 @@ def delete_template():
         db.commit()
 
     return jsonify({'ok': True})
+
+# ── Public no-signup live demo ────────────────────────────────────────────────
+@app.route('/api/demo-query', methods=['POST'])
+def demo_query():
+    if not ANTHROPIC_KEY:
+        return jsonify({'error': 'Server not configured.'}), 500
+
+    data     = request.json or {}
+    question = (data.get('question') or '').strip()
+    if not question:
+        return jsonify({'error': 'Please enter a question.'}), 400
+    if len(question) > 300:
+        question = question[:300]
+
+    ip  = (request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown')).split(',')[0].strip()
+    now = time.time()
+    hits = [t for t in _demo_rate_limit.get(ip, []) if now - t < 3600]
+    if len(hits) >= DEMO_LIMIT_PER_HOUR:
+        return jsonify({'error': 'Demo limit reached for this hour. Sign up free to keep going — it only takes a few seconds.'}), 429
+    hits.append(now)
+    _demo_rate_limit[ip] = hits
+
+    prompt = f"""You are DataSpeak, an AI data analyst. A visitor is trying the live demo on this sample dataset (monthly revenue and new signups for Jan-Jun 2024):
+
+{DEMO_DATA}
+
+Their question: {question}
+
+Answer in 2-4 short sentences, plain text, no markdown. Reference exact numbers from the data and show the simple math for any percentage or change you cite (e.g. "231,000 - 142,500 = 88,500; 88,500 / 142,500 = 62%"). Tag each claim as [FINDING] (directly supported by the data above) or [ASSUMPTION] (a reasonable inference that would need more data to confirm). If the question can't be answered from this dataset, say so plainly and suggest what data would be needed.
+
+ACCURACY RULES:
+- Only use numbers that appear in the dataset above.
+- Show your arithmetic for any percentage or trend.
+- Do not invent rows, months, or figures not present in the data.
+
+FORMATTING: Plain text only. No markdown, no asterisks, no headers."""
+
+    try:
+        client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+        message = client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=400,
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return jsonify({'answer': message.content[0].text})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # ── Chat with data ────────────────────────────────────────────────────────────
 @app.route('/api/chat', methods=['POST'])
