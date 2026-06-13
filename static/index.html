@@ -118,8 +118,39 @@
     .perk::before { content: '✓'; color: var(--green); font-weight: 700; }
 
     /* APP */
-    .app-wrap { display: none; max-width: 900px; margin: 0 auto; padding: 28px 20px 80px; }
+    .app-wrap { display: none; }
     .app-wrap.visible { display: block; }
+    .app-shell { display: flex; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; align-items: flex-start; }
+    .app-sidebar { width: 200px; flex-shrink: 0; position: sticky; top: 78px; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; text-decoration: none; transition: all 0.15s; }
+    .sidebar-link:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-link.active { background: var(--surface2); color: var(--accent2); }
+    .app-main { flex: 1; min-width: 0; }
+
+    /* KPI CARDS + CHART */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; }
+    .kpi-label { font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+    .kpi-value { font-size: 22px; font-weight: 800; color: var(--text); }
+    .kpi-delta { font-size: 12px; font-weight: 700; margin-top: 4px; }
+    .kpi-delta.up { color: var(--green); }
+    .kpi-delta.down { color: var(--red); }
+    .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
+    .chart-card h3 { font-size: 13px; font-weight: 700; color: var(--text2); margin: 0 0 12px; }
+
+    /* REPORTS VIEW */
+    .reports-list { display: flex; flex-direction: column; gap: 10px; }
+    .report-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: border-color 0.15s; }
+    .report-item:hover { border-color: var(--accent2); }
+    .report-item-title { font-weight: 700; font-size: 14px; color: var(--text); }
+    .report-item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .report-item-mode { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--surface2); color: var(--muted); white-space: nowrap; }
+    @media (max-width: 860px) {
+      .app-shell { flex-direction: column; }
+      .app-sidebar { width: 100%; position: static; }
+      .sidebar-nav { flex-direction: row; overflow-x: auto; }
+    }
 
     /* USAGE BAR */
     .usage-bar-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
@@ -479,6 +510,15 @@
 
 <!-- APP -->
 <div class="app-wrap" id="appWrap">
+<div class="app-shell">
+  <aside class="app-sidebar">
+    <nav class="sidebar-nav">
+      <a class="sidebar-link active" id="navWorkspace" onclick="switchView('workspace',this)">📊 Workspace</a>
+      <a class="sidebar-link" id="navReports" onclick="switchView('reports',this)">📁 Reports</a>
+    </nav>
+  </aside>
+  <div class="app-main">
+  <div id="workspaceView">
 
   <!-- USAGE BAR -->
   <div class="usage-bar-wrap" id="welcomeBar">
@@ -529,6 +569,15 @@
       </div>
       <button onclick="dismissTour()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#8a93b3;line-height:1;">✕</button>
     </div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row" id="kpiRow" style="display:none"></div>
+
+  <!-- TREND CHART -->
+  <div class="chart-card" id="chartCard" style="display:none">
+    <h3 id="chartTitle">Trend</h3>
+    <div id="chartSvgWrap"></div>
   </div>
 
   <!-- MODE TABS -->
@@ -711,6 +760,20 @@
     </div>
   </div>
 
+  </div><!-- /workspaceView -->
+
+  <!-- REPORTS VIEW -->
+  <div id="reportsView" style="display:none">
+    <div class="card">
+      <div class="card-header">📁 Report History</div>
+      <div class="reports-list" id="reportsList" style="padding:14px 18px">
+        <p style="color:var(--muted);font-size:13px;">No reports yet — generate your first one from the Workspace tab.</p>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /app-main -->
+</div><!-- /app-shell -->
 </div>
 
 <!-- SHARE TOAST -->
@@ -760,7 +823,7 @@
 <script>
   let userToken='', csvContent='', currentSrc='sql', currentInputTab='paste', currentMode='analyse';
   let userPlan='free', userUsage=0, userLimit=10;
-  let lastResult='', lastAudience='', lastIndustry='', lastTitle='';
+  let lastResult='', lastAudience='', lastIndustry='', lastTitle='', lastReportId='';
   let userTemplates=[];
 
   const placeholders = {
@@ -793,6 +856,126 @@
     updatePlaceholder();
     initGoogleSignIn();
   };
+
+  // ── Sidebar / Reports view ───────────────────────────────────────────
+  function switchView(view, el) {
+    document.querySelectorAll('.sidebar-link').forEach(a => a.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.getElementById('workspaceView').style.display = view === 'workspace' ? 'block' : 'none';
+    document.getElementById('reportsView').style.display = view === 'reports' ? 'block' : 'none';
+    if (view === 'reports') loadReports();
+  }
+
+  async function loadReports() {
+    const list = document.getElementById('reportsList');
+    if (!userToken) return;
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Loading…</p>';
+    try {
+      const res = await fetch('/api/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: userToken }) });
+      const json = await res.json();
+      const reports = json.reports || [];
+      if (!reports.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reports yet — generate your first one from the Workspace tab.</p>';
+        return;
+      }
+      list.innerHTML = reports.map(r => {
+        const date = new Date(r.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+        const modeLabel = {analyse:'📊 Analyse', compare:'🔄 Compare', red_flags:'🚨 Red Flags'}[r.mode] || r.mode;
+        return `<div class="report-item" onclick="loadReport('${r.id}')">
+          <div>
+            <div class="report-item-title">${escapeHtml(r.title || 'Untitled Report')}</div>
+            <div class="report-item-meta">${date}${r.data_source ? ' · ' + r.data_source.toUpperCase() : ''}</div>
+          </div>
+          <span class="report-item-mode">${modeLabel}</span>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Could not load report history.</p>';
+    }
+  }
+
+  async function loadReport(id) {
+    try {
+      const res = await fetch('/api/reports/' + id, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: userToken }) });
+      const json = await res.json();
+      if (json.error) return;
+      lastResult = json.result; lastReportId = id;
+      lastTitle = json.title || 'DataSpeak Report';
+      lastAudience = json.audience || ''; lastIndustry = json.industry || '';
+      let renderKeys;
+      const mode = json.mode || 'analyse';
+      if (mode === 'red_flags') renderKeys = ['red flags','root causes','risk level','immediate actions'];
+      else if (mode === 'compare') renderKeys = ['comparison summary','key differences','what improved','what declined','recommendations'];
+      else renderKeys = (json.outputs && json.outputs.length) ? json.outputs : ['summary','bullets','recommendations','email'];
+      if ((json.result||'').toUpperCase().includes('FORENSIC TRAIL')) renderKeys.push('forensic trail');
+      renderOutput(json.result, renderKeys);
+      renderKPIs(json.kpis); renderChart(json.series);
+      switchView('workspace', document.getElementById('navWorkspace'));
+      document.getElementById('outputCard').scrollIntoView({behavior:'smooth', block:'start'});
+    } catch(e) {}
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ── KPI cards + trend chart ─────────────────────────────────────────
+  function renderKPIs(kpis) {
+    const row = document.getElementById('kpiRow');
+    if (!kpis || !kpis.length) { row.style.display = 'none'; row.innerHTML = ''; return; }
+    row.innerHTML = kpis.map(k => {
+      let deltaHtml = '';
+      if (k.delta_pct !== null && k.delta_pct !== undefined) {
+        const up = k.delta_pct >= 0;
+        deltaHtml = `<div class="kpi-delta ${up?'up':'down'}">${up?'▲':'▼'} ${Math.abs(k.delta_pct).toFixed(1)}%</div>`;
+      }
+      return `<div class="kpi-card">
+        <div class="kpi-label">${escapeHtml(k.label)}</div>
+        <div class="kpi-value">${escapeHtml(formatKpiValue(k.value))}</div>
+        ${deltaHtml}
+      </div>`;
+    }).join('');
+    row.style.display = 'grid';
+  }
+
+  function formatKpiValue(v) {
+    if (typeof v !== 'number') return v;
+    if (Math.abs(v) >= 1000) return v.toLocaleString(undefined, {maximumFractionDigits:0});
+    return v.toLocaleString(undefined, {maximumFractionDigits:2});
+  }
+
+  function renderChart(series) {
+    const card = document.getElementById('chartCard');
+    if (!series || !series.values || !series.values.length) { card.style.display = 'none'; return; }
+    document.getElementById('chartTitle').textContent = series.label || 'Trend';
+    const w = 640, h = 180, pad = 28;
+    const vals = series.values;
+    const labels = series.labels || vals.map((_,i)=>String(i+1));
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = (max - min) || 1;
+    const stepX = vals.length > 1 ? (w - pad*2) / (vals.length - 1) : 0;
+    const pts = vals.map((v,i) => {
+      const x = pad + i * stepX;
+      const y = h - pad - ((v - min) / range) * (h - pad*2);
+      return [x,y];
+    });
+    const pathD = pts.map((p,i) => (i===0?'M':'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const areaD = pathD + ` L${pts[pts.length-1][0].toFixed(1)},${h-pad} L${pts[0][0].toFixed(1)},${h-pad} Z`;
+    const dots = pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="#4f8ef7"/>`).join('');
+    const labelEls = labels.map((l,i) => `<text x="${pts[i][0].toFixed(1)}" y="${h-6}" font-size="10" fill="#7b86a3" text-anchor="middle">${escapeHtml(String(l))}</text>`).join('');
+    card.innerHTML = `<h3 id="chartTitle">${escapeHtml(series.label || 'Trend')}</h3>
+      <svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;max-height:220px;">
+        <defs><linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4f8ef7" stop-opacity="0.18"/>
+          <stop offset="100%" stop-color="#4f8ef7" stop-opacity="0"/>
+        </linearGradient></defs>
+        <path d="${areaD}" fill="url(#chartGrad)"/>
+        <path d="${pathD}" fill="none" stroke="#4f8ef7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+        ${labelEls}
+      </svg>`;
+    card.style.display = 'block';
+  }
 
   // ── Google Sign-In ───────────────────────────────────────────────────────
   const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
@@ -1041,6 +1224,7 @@
     lastIndustry = document.getElementById('industrySelect').value;
     lastTitle    = document.getElementById('contextInput').value.trim() || 'DataSpeak Report';
 
+    document.getElementById('kpiRow').style.display='none'; document.getElementById('chartCard').style.display='none';
     showErr(''); setLoader(true, currentMode === 'red_flags' ? 'Hunting for red flags...' : 'Analysing your data...');
     try {
       const res = await fetch('/api/generate', {
@@ -1064,6 +1248,8 @@
         : [...outputs];
       if (json.result.toUpperCase().includes('FORENSIC TRAIL')) renderKeys.push('forensic trail');
       renderOutput(json.result, renderKeys);
+      lastReportId = json.report_id || '';
+      renderKPIs(json.kpis); renderChart(json.series);
     } catch(e) { showErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
@@ -1102,6 +1288,8 @@
       const cmpKeys = ['comparison summary','key differences','what improved','what declined','recommendations'];
       if (json.result.toUpperCase().includes('FORENSIC TRAIL')) cmpKeys.push('forensic trail');
       renderOutput(json.result, cmpKeys);
+      lastReportId = json.report_id || '';
+      renderKPIs(json.kpis); renderChart(json.series);
     } catch(e) { showCmpErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
