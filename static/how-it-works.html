@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How DataSpeak Works — Turn Raw Data Into Clear Insights</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#f7c948; --accent2:#4f8ef7; --purple:#845ef7; --green:#00d48a; --red:#ff5f72;
+    --ink:#1a1f36; --muted:#5b6786; --border:#e7ecfb; --card:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:linear-gradient(160deg,#f4f7ff 0%,#eef3ff 45%,#fdf6e8 100%);color:var(--ink);min-height:100vh;}
+  h1,h2,h3,.logo{font-family:'Poppins','Inter',system-ui,sans-serif;}
+  a{text-decoration:none;color:inherit;}
+
+  nav{background:#fff;border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;gap:24px;position:sticky;top:0;z-index:100;}
+  .logo{font-size:18px;font-weight:800;color:#161a30;display:flex;align-items:center;gap:8px;}
+  .logo span{color:var(--accent2);}
+  .nav-links{display:flex;gap:24px;font-size:14px;font-weight:600;color:var(--muted);}
+  .nav-links a:hover{color:var(--ink);}
+  .nav-right{margin-left:auto;}
+  .cta-btn{background:linear-gradient(135deg,var(--accent),#e6b800);color:#1a1200;font-weight:800;border:none;border-radius:10px;padding:10px 20px;font-size:14px;cursor:pointer;}
+  .cta-btn:hover{filter:brightness(1.08);}
+
+  .hero{padding:64px 6vw 40px;text-align:center;max-width:900px;margin:0 auto;}
+  .hero .badge{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:6px 16px;font-size:12px;font-weight:700;color:#c8941f;box-shadow:0 4px 16px rgba(247,201,72,0.15);margin-bottom:20px;}
+  .hero h1{font-size:clamp(30px,5vw,48px);font-weight:900;line-height:1.2;margin-bottom:16px;}
+  .hero h1 .grad{background:linear-gradient(135deg,#4f8ef7,#845ef7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .hero p{font-size:17px;color:var(--muted);line-height:1.7;max-width:680px;margin:0 auto;}
+
+  .container{max-width:1100px;margin:0 auto;padding:40px 6vw;}
+  .section-title{text-align:center;font-size:clamp(24px,4vw,36px);font-weight:800;margin-bottom:12px;}
+  .section-sub{text-align:center;color:var(--muted);font-size:15px;max-width:600px;margin:0 auto 40px;line-height:1.6;}
+
+  /* Steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+  .step-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;box-shadow:0 8px 24px rgba(40,60,120,0.06);}
+  .step-num{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#4f8ef7,#845ef7);color:#fff;font-weight:800;font-size:15px;margin-bottom:14px;}
+  .step-card h3{font-size:17px;font-weight:700;margin-bottom:8px;}
+  .step-card p{font-size:14px;color:var(--muted);line-height:1.6;}
+
+  /* Example output mockup */
+  .mockup-wrap{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px;box-shadow:0 20px 60px rgba(40,60,120,0.08);display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;}
+  .mockup-text h3{font-size:22px;font-weight:800;margin-bottom:12px;}
+  .mockup-text p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:10px;}
+  .tag-finding{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;background:#e6fbf2;color:#00a368;margin-right:6px;letter-spacing:0.04em;}
+  .tag-assumption{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:5px;background:#fff4d9;color:#b9871a;margin-right:6px;letter-spacing:0.04em;}
+
+  /* Why grid */
+  .why-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+  .why-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;text-align:center;box-shadow:0 8px 24px rgba(40,60,120,0.05);}
+  .why-card .icon{font-size:26px;margin-bottom:10px;}
+  .why-card h4{font-size:14px;font-weight:700;margin-bottom:6px;}
+  .why-card p{font-size:12px;color:var(--muted);line-height:1.5;}
+
+  .final-cta{text-align:center;padding:60px 6vw 80px;}
+  .final-cta h2{font-size:clamp(24px,4vw,34px);font-weight:800;margin-bottom:14px;}
+  .final-cta p{color:var(--muted);margin-bottom:24px;}
+
+  @media(max-width:900px){
+    .steps{grid-template-columns:1fr;}
+    .mockup-wrap{grid-template-columns:1fr;}
+    .why-grid{grid-template-columns:repeat(2,1fr);}
+    .nav-links{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">📊 Data<span>Speak</span></a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/how-it-works.html">How It Works</a>
+  </div>
+  <div class="nav-right"><a href="/"><button class="cta-btn">Get Started Free</button></a></div>
+</nav>
+
+<section class="hero">
+  <div class="badge">✨ See exactly how it works</div>
+  <h1>Turn messy data into a <span class="grad">clear, decision-ready report</span> in under a minute</h1>
+  <p>DataSpeak takes raw SQL output, spreadsheets, R results, or pandas dataframes and turns them into plain-English summaries, prioritized recommendations, red-flag alerts, and ready-to-send emails — backed by real numbers, not guesses.</p>
+</section>
+
+<div class="container">
+  <h2 class="section-title">How it works</h2>
+  <p class="section-sub">Three steps from raw output to a polished report your team can act on immediately.</p>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <h3>Paste your data</h3>
+      <p>Copy results straight from SQL, Excel, R, Python/pandas, or any table. Tell DataSpeak who the report is for — CEO, client, board, or your team — and pick the industry for relevant benchmarks.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <h3>AI analyzes &amp; verifies</h3>
+      <p>Our model reads every row and column, checks the numbers against industry benchmarks, and shows its arithmetic for every percentage or trend it reports — no invented figures.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <h3>Get a complete report</h3>
+      <p>Receive a plain-English summary, key insights tagged as findings or assumptions, recommendations, red flags, and an email draft — exportable to Word or slides, or shared via a live link.</p>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <h2 class="section-title">What you actually get</h2>
+  <p class="section-sub">Every report shows its work — real numbers, transparent confidence levels, and a risk read you can trust.</p>
+  <div class="mockup-wrap">
+    <svg viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="420" height="300" rx="16" fill="#f7f9ff"/>
+      <text x="20" y="32" font-family="Poppins" font-size="15" font-weight="800" fill="#1a1f36">Monthly Revenue ($k)</text>
+      <line x1="40" y1="250" x2="400" y2="250" stroke="#dbe3fb" stroke-width="2"/>
+      <rect x="55"  y="180" width="34" height="70"  rx="4" fill="#cdddff"/>
+      <rect x="105" y="160" width="34" height="90"  rx="4" fill="#a9c3ff"/>
+      <rect x="155" y="130" width="34" height="120" rx="4" fill="#7fa6ff"/>
+      <rect x="205" y="110" width="34" height="140" rx="4" fill="#4f8ef7"/>
+      <rect x="255" y="95"  width="34" height="155" rx="4" fill="#845ef7"/>
+      <rect x="305" y="60"  width="34" height="190" rx="4" fill="#00d48a"/>
+      <rect x="355" y="40"  width="34" height="210" rx="4" fill="#00b377"/>
+      <text x="55"  y="265" font-size="11" fill="#8a93b3">Jan</text>
+      <text x="155" y="265" font-size="11" fill="#8a93b3">Mar</text>
+      <text x="255" y="265" font-size="11" fill="#8a93b3">May</text>
+      <text x="355" y="265" font-size="11" fill="#8a93b3">Jul</text>
+      <text x="240" y="55" font-size="13" font-weight="700" fill="#00a368">+62% since Jan</text>
+    </svg>
+    <div class="mockup-text">
+      <h3>KEY INSIGHTS</h3>
+      <p><span class="tag-finding">FINDING</span> Revenue grew from $142.5k in Jan to $231.0k in Jul, an increase of 62.1% (231.0 − 142.5 = 88.5; 88.5 / 142.5 = 0.621).</p>
+      <p><span class="tag-finding">FINDING</span> June-to-July growth (190 → 210, +10.5%) outpaced every prior month, suggesting a recent campaign or seasonal effect.</p>
+      <p><span class="tag-assumption">ASSUMPTION</span> The acceleration in May–Jul likely correlates with a product launch — worth cross-checking against your release calendar.</p>
+      <p style="margin-top:14px;">Every figure above is pulled directly from your pasted data, with the math shown so you can verify it in seconds.</p>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <h2 class="section-title">Why teams choose DataSpeak</h2>
+  <p class="section-sub">Built for people who need to turn numbers into decisions — fast, accurately, and without a data science degree.</p>
+  <div class="why-grid">
+    <div class="why-card"><div class="icon">🎯</div><h4>Accurate by design</h4><p>Findings vs. assumptions are clearly tagged, and every calculation shows its arithmetic.</p></div>
+    <div class="why-card"><div class="icon">🚨</div><h4>Red flag detection</h4><p>Surfaces anomalies, outliers, and risks before they become real problems.</p></div>
+    <div class="why-card"><div class="icon">📈</div><h4>Industry benchmarks</h4><p>Compares your numbers to SaaS, e-commerce, finance, marketing, ops, and HR standards.</p></div>
+    <div class="why-card"><div class="icon">📤</div><h4>Export-ready</h4><p>One click to Word, slides, or a shareable live report link.</p></div>
+  </div>
+</div>
+
+<div class="final-cta">
+  <h2>Ready to see your data tell its story?</h2>
+  <p>Free to start — no credit card required.</p>
+  <a href="/"><button class="cta-btn">Try DataSpeak Free</button></a>
+</div>
+
+</body>
+</html>
