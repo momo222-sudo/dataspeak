@@ -13,6 +13,7 @@ STRIPE_SECRET_KEY    = os.environ.get('STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET= os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_PRICE_ID      = os.environ.get('STRIPE_PRICE_ID', '')
 APP_URL              = os.environ.get('APP_URL', 'https://dataspeak-vydp.onrender.com')
+GOOGLE_CLIENT_ID     = os.environ.get('GOOGLE_CLIENT_ID', '')
 DB_PATH              = 'users.db'
 
 FREE_LIMIT = 10   # analyses per month on free plan
@@ -130,7 +131,7 @@ def init_db():
 
 init_db()
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ──────────────────────────────────────────────────────────────────
 def reset_usage_if_needed(db, user):
     this_month = date.today().strftime('%Y-%m')
     if user['usage_reset_month'] != this_month:
@@ -330,6 +331,45 @@ def signup():
         token = secrets.token_urlsafe(32)
         db.execute('INSERT INTO users (email, token, source) VALUES (?, ?, ?)',
                    (email, token, source))
+        db.commit()
+
+    return jsonify({'token': token, 'email': email, 'returning': False,
+                    'plan': 'free', 'usage': 0, 'limit': FREE_LIMIT})
+
+@app.route('/api/auth/google', methods=['POST'])
+def auth_google():
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({'error': 'Google sign-in is not configured yet.'}), 500
+
+    data       = request.json or {}
+    credential = (data.get('credential') or '').strip()
+    if not credential:
+        return jsonify({'error': 'Missing Google credential.'}), 400
+
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+        idinfo = google_id_token.verify_oauth2_token(
+            credential, google_requests.Request(), GOOGLE_CLIENT_ID
+        )
+    except Exception:
+        return jsonify({'error': 'Invalid Google credential.'}), 401
+
+    email = (idinfo.get('email') or '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Google account has no email.'}), 400
+
+    with get_db() as db:
+        existing = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        if existing:
+            usage = reset_usage_if_needed(db, existing)
+            return jsonify({
+                'token': existing['token'], 'email': email, 'returning': True,
+                'plan': existing['plan'], 'usage': usage, 'limit': FREE_LIMIT
+            })
+        token = secrets.token_urlsafe(32)
+        db.execute('INSERT INTO users (email, token, source) VALUES (?, ?, ?)',
+                   (email, token, 'google'))
         db.commit()
 
     return jsonify({'token': token, 'email': email, 'returning': False,
