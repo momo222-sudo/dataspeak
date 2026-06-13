@@ -40,6 +40,25 @@
     .signup-box { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 32px; max-width: 480px; width: 100%; text-align: left; }
     .signup-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
     .signup-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+    /* HERO BADGE */
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 22px; }
+
+    /* OAUTH */
+    .oauth-wrap { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; }
+    .oauth-btn:hover { border-color: var(--muted); }
+    .oauth-btn.apple { opacity: 0.5; cursor: not-allowed; }
+    .oauth-divider { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--muted); margin: 16px 0; text-transform: uppercase; letter-spacing: 0.05em; }
+    .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    #googleSignInBtn { display: flex; justify-content: center; }
+
+    /* FEATURE STRIP */
+    .feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 14px; max-width: 820px; width: 100%; margin-top: 48px; }
+    .feature-item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; }
+    .feature-item .fi-icon { font-size: 22px; margin-bottom: 8px; }
+    .feature-item .fi-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .feature-item .fi-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
     .email-row { display: flex; gap: 10px; }
     .email-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--text); outline: none; }
     .email-row input:focus { border-color: var(--accent); }
@@ -243,11 +262,19 @@
 
 <!-- GATE -->
 <section class="gate" id="gate">
+  <div class="hero-badge">✨ AI-powered analysis · confidence-scored · in seconds</div>
   <h1>Raw data in.<br><span>Clear words out.</span></h1>
   <p class="gate-sub">Paste your SQL results, R output, Python DataFrame, or Excel data — get professional insights, red flags, comparisons, and shareable reports in seconds.</p>
   <div class="signup-box">
     <h2>Get started free</h2>
     <p>10 free analyses per month. No credit card ever needed.</p>
+
+    <div class="oauth-wrap">
+      <div id="googleSignInBtn"></div>
+      <button class="oauth-btn apple" disabled title="Coming soon"> Sign in with Apple (coming soon)</button>
+    </div>
+    <div class="oauth-divider">or use email</div>
+
     <div class="perks">
       <div class="perk">10 free analyses/month</div>
       <div class="perk">SQL, R, Python, Excel</div>
@@ -267,7 +294,17 @@
       <button onclick="loginWithToken()">Sign In</button>
     </div>
   </div>
+
+  <div class="feature-strip">
+    <div class="feature-item"><div class="fi-icon">🚨</div><div class="fi-title">Red Flags</div><div class="fi-desc">Forensic-style anomaly & risk detection</div></div>
+    <div class="feature-item"><div class="fi-icon">🔄</div><div class="fi-title">Compare</div><div class="fi-desc">Side-by-side dataset comparisons</div></div>
+    <div class="feature-item"><div class="fi-icon">💬</div><div class="fi-title">Chat</div><div class="fi-desc">Ask follow-up questions about your data</div></div>
+    <div class="feature-item"><div class="fi-icon">🔗</div><div class="fi-title">Share</div><div class="fi-desc">Branded public report links</div></div>
+    <div class="feature-item"><div class="fi-icon">📑</div><div class="fi-title">Export</div><div class="fi-desc">Word docs & PowerPoint decks</div></div>
+  </div>
 </section>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <!-- APP -->
 <div class="app-wrap" id="appWrap">
@@ -545,7 +582,34 @@
     const saved = localStorage.getItem('ds_token');
     if (saved) await checkLogin(saved);
     updatePlaceholder();
+    initGoogleSignIn();
   };
+
+  // ── Google Sign-In ───────────────────────────────────────────────────────
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+  function initGoogleSignIn(retries) {
+    retries = retries || 0;
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) return; // not configured yet
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleGoogleCredential });
+      const el = document.getElementById('googleSignInBtn');
+      if (el) google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', width: 280, text: 'continue_with' });
+    } else if (retries < 20) {
+      setTimeout(() => initGoogleSignIn(retries + 1), 150);
+    }
+  }
+  async function handleGoogleCredential(response) {
+    setGateErr('');
+    try {
+      const res  = await fetch('/api/auth/google', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ credential: response.credential }) });
+      const data = await res.json();
+      if (data.error) { setGateErr(data.error); return; }
+      localStorage.setItem('ds_token', data.token);
+      userToken = data.token; userPlan = data.plan||'free';
+      userUsage = data.usage||0; userLimit = data.limit||10;
+      showApp(data.email);
+    } catch(e) { setGateErr('Google sign-in failed. Please try again.'); }
+  }
 
   async function checkLogin(token) {
     try {
