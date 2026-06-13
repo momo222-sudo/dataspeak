@@ -497,6 +497,27 @@
     <button onclick="openUpgrade()">⚡ Upgrade to Pro →</button>
   </div>
 
+  <!-- LOW USAGE BANNER -->
+  <div id="lowUsageBanner" style="display:none;background:#fff4d9;border:1px solid #f7c948;border-radius:12px;padding:12px 18px;margin-bottom:16px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <span style="font-size:13px;font-weight:700;color:#8a6d1f;" id="lowUsageText"></span>
+    <button onclick="openUpgrade()" style="background:linear-gradient(135deg,#f7c948,#e6b800);color:#1a1200;font-weight:800;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;white-space:nowrap;">⚡ Upgrade to Pro</button>
+  </div>
+
+  <!-- ONBOARDING TOUR -->
+  <div class="card" id="onboardTour" style="display:none;background:linear-gradient(135deg,#eef3ff,#fdf6e8);border:1px solid #e7ecfb;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+      <div>
+        <div style="font-weight:800;font-size:15px;margin-bottom:10px;color:#1a1f36;">👋 Quick start — 3 steps to your first report</div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;color:#5b6786;line-height:1.5;">
+          <div style="max-width:260px;"><strong style="color:#4f8ef7;">1. Paste your data</strong><br>SQL, Excel, R, or Python output goes in the box below.</div>
+          <div style="max-width:260px;"><strong style="color:#845ef7;">2. Get your report</strong><br>Pick your audience &amp; outputs, then hit Generate Report.</div>
+          <div style="max-width:260px;"><strong style="color:#00d48a;">3. Check the Forensic Trail</strong><br>Open the 🔎 Forensic Trail tab to see exactly how each finding was calculated.</div>
+        </div>
+      </div>
+      <button onclick="dismissTour()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#8a93b3;line-height:1;">✕</button>
+    </div>
+  </div>
+
   <!-- MODE TABS -->
   <div class="mode-tabs">
     <button class="mode-tab active" onclick="setMode('analyse',this)">📊 Analyse</button>
@@ -800,6 +821,14 @@
     document.getElementById('navRight').style.display = 'flex';
     document.getElementById('welcomeEmail').textContent = email;
     updateUsageUI(); updatePlaceholder(); loadUserTemplates();
+    if (!localStorage.getItem('dsTourSeen')) {
+      document.getElementById('onboardTour').style.display = 'block';
+    }
+  }
+
+  function dismissTour() {
+    document.getElementById('onboardTour').style.display = 'none';
+    localStorage.setItem('dsTourSeen', '1');
   }
 
   function updateUsageUI() {
@@ -810,15 +839,20 @@
     const navUp  = document.getElementById('navUpgradeBtn');
     const limBan = document.getElementById('limitBanner');
 
+    const lowBan  = document.getElementById('lowUsageBanner');
+    const lowText = document.getElementById('lowUsageText');
+
     if (userPlan === 'pro') {
       pill.textContent = 'Pro · unlimited'; pill.className = 'usage-pill pro-unlimited';
       fill.style.width = '100%'; fill.className = 'usage-fill';
       upBtn.style.display = 'none'; navUp.style.display = 'none';
       navBdg.textContent = '⚡ Pro'; navBdg.className = 'plan-badge pro';
       limBan.classList.remove('visible');
+      lowBan.style.display = 'none';
       document.getElementById('manageLink').style.display = 'block';
     } else {
       const pct = Math.min(100, Math.round((userUsage / userLimit) * 100));
+      const remaining = Math.max(0, userLimit - userUsage);
       pill.textContent = `${userUsage} / ${userLimit} used`;
       fill.style.width = pct + '%';
       navBdg.textContent = 'Free'; navBdg.className = 'plan-badge';
@@ -827,12 +861,21 @@
       if (userUsage >= userLimit) {
         pill.className = 'usage-pill maxed'; fill.className = 'usage-fill maxed';
         limBan.classList.add('visible');
+        lowBan.style.display = 'none';
       } else if (pct >= 70) {
         pill.className = 'usage-pill warning'; fill.className = 'usage-fill warning';
         limBan.classList.remove('visible');
       } else {
         pill.className = 'usage-pill'; fill.className = 'usage-fill';
         limBan.classList.remove('visible');
+        lowBan.style.display = 'none';
+      }
+
+      if (userUsage < userLimit && remaining <= 2) {
+        lowText.textContent = remaining === 1
+          ? 'Only 1 analysis left this month — upgrade for unlimited reports.'
+          : `Only ${remaining} analyses left this month — upgrade for unlimited reports.`;
+        lowBan.style.display = 'flex';
       }
     }
   }
