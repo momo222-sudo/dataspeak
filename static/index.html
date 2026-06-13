@@ -120,13 +120,27 @@
     /* APP */
     .app-wrap { display: none; }
     .app-wrap.visible { display: block; }
-    .app-shell { display: flex; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; align-items: flex-start; }
-    .app-sidebar { width: 200px; flex-shrink: 0; position: sticky; top: 78px; }
-    .sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
-    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; text-decoration: none; transition: all 0.15s; }
-    .sidebar-link:hover { background: var(--surface2); color: var(--text); }
-    .sidebar-link.active { background: var(--surface2); color: var(--accent2); }
+        .app-shell { display: flex; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; align-items: flex-start; }
+    .app-sidebar { width: 220px; flex-shrink: 0; position: sticky; top: 78px; background: #161b30; border-radius: 18px; padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; min-height: 480px; }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 4px 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 800; font-size: 15px; color: #fff; }
+    .sidebar-logo-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent2), #845ef7); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 14px; flex-shrink: 0; }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.55); cursor: pointer; text-decoration: none; transition: all 0.15s; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar-link.active { background: rgba(79,142,247,0.18); color: #fff; }
+    .sidebar-link.placeholder { cursor: default; }
+    .sidebar-link.placeholder:hover { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.55); }
+    .sidebar-footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 12px 10px 2px; font-size: 12px; color: rgba(255,255,255,0.45); font-weight: 600; }
     .app-main { flex: 1; min-width: 0; }
+
+    /* WORKSPACE HEADER */
+    .workspace-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .workspace-header h2 { font-size: 22px; font-weight: 800; color: var(--text); margin: 0 0 4px; }
+    .workspace-header .ws-meta { font-size: 13px; color: var(--muted); }
+    .workspace-header .ws-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .ws-btn { font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text2); cursor: pointer; white-space: nowrap; }
+    .ws-btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+    .ws-btn:hover { border-color: var(--accent2); }
 
     /* KPI CARDS + CHART */
     .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 16px; }
@@ -136,8 +150,16 @@
     .kpi-delta { font-size: 12px; font-weight: 700; margin-top: 4px; }
     .kpi-delta.up { color: var(--green); }
     .kpi-delta.down { color: var(--red); }
+    .results-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 980px) { .results-grid { grid-template-columns: 1fr; } }
     .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
     .chart-card h3 { font-size: 13px; font-weight: 700; color: var(--text2); margin: 0 0 12px; }
+
+    /* RECENT REPORTS STRIP */
+    .recent-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; font-size: 13px; color: var(--muted); }
+    .recent-strip strong { color: var(--text2); font-weight: 700; }
+    .recent-strip a { color: var(--accent2); font-weight: 700; text-decoration: none; margin-left: auto; white-space: nowrap; }
+    .recent-strip .recent-items { color: var(--text2); }
 
     /* REPORTS VIEW */
     .reports-list { display: flex; flex-direction: column; gap: 10px; }
@@ -511,15 +533,31 @@
 <!-- APP -->
 <div class="app-wrap" id="appWrap">
 <div class="app-shell">
-  <aside class="app-sidebar">
+    <aside class="app-sidebar">
+    <div class="sidebar-logo"><span class="sidebar-logo-mark">D</span> DataSpeak</div>
     <nav class="sidebar-nav">
       <a class="sidebar-link active" id="navWorkspace" onclick="switchView('workspace',this)">📊 Workspace</a>
       <a class="sidebar-link" id="navReports" onclick="switchView('reports',this)">📁 Reports</a>
+      <a class="sidebar-link placeholder" onclick="placeholderNav('Trends')">📈 Trends</a>
+      <a class="sidebar-link placeholder" onclick="placeholderNav('Team')">👥 Team</a>
+      <a class="sidebar-link placeholder" onclick="placeholderNav('Settings')">⚙️ Settings</a>
     </nav>
+    <div class="sidebar-footer" id="sidebarFooter">DataSpeak · Free plan</div>
   </aside>
   <div class="app-main">
   <div id="workspaceView">
 
+  <!-- WORKSPACE HEADER -->
+  <div class="workspace-header">
+    <div>
+      <h2 id="wsTitle">New report</h2>
+      <div class="ws-meta" id="wsMeta">Paste your data below to get started</div>
+    </div>
+    <div class="ws-actions">
+      <button class="ws-btn" id="wsExportBtn" onclick="exportWord()" style="display:none">Export</button>
+      <button class="ws-btn primary" onclick="newReport()">+ New report</button>
+    </div>
+  </div>
   <!-- USAGE BAR -->
   <div class="usage-bar-wrap" id="welcomeBar">
     <div class="usage-info">
@@ -574,12 +612,31 @@
   <!-- KPI CARDS -->
   <div class="kpi-row" id="kpiRow" style="display:none"></div>
 
-  <!-- TREND CHART -->
-  <div class="chart-card" id="chartCard" style="display:none">
-    <h3 id="chartTitle">Trend</h3>
-    <div id="chartSvgWrap"></div>
+  <!-- TREND CHART + AI SUMMARY -->
+  <div class="results-grid" id="resultsGrid" style="display:none">
+    <div class="chart-card" id="chartCard" style="display:none">
+      <h3 id="chartTitle">Trend</h3>
+      <div id="chartSvgWrap"></div>
+    </div>
+    <!-- OUTPUT CARD -->
+    <div class="card out-card" id="outputCard">
+      <div class="out-toolbar">
+        <span>✦ Your Report</span>
+        <span id="dsScoreBadge" style="display:none;margin-left:8px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#e6fbf2;color:#00a368;"></span>
+        <button class="tool-btn" onclick="copyRaw()">📋 Copy</button>
+        <button class="tool-btn" onclick="exportWord()">📄 Word</button>
+        <button class="tool-btn" onclick="exportSlides()">📊 Slides</button>
+        <button class="tool-btn share" onclick="shareReport()">🔗 Share</button>
+      </div>
+      <div class="conf-legend" id="confLegend">
+        <span><span class="badge-finding">FINDING</span> Directly in the data</span>
+        <span><span class="badge-assumption">ASSUMPTION</span> Needs validation</span>
+      </div>
+      <div id="promoTip" style="display:none;font-size:12px;color:#5b6786;background:#f7f9ff;border:1px solid #e7ecfb;border-radius:10px;padding:8px 14px;margin-bottom:10px;"></div>
+      <div class="out-tabs" id="outTabs"></div>
+      <div id="outPanels"></div>
+    </div>
   </div>
-
   <!-- MODE TABS -->
   <div class="mode-tabs">
     <button class="mode-tab active" onclick="setMode('analyse',this)">📊 Analyse</button>
@@ -731,25 +788,6 @@
     <p id="loaderText">Analysing your data...</p>
   </div>
 
-  <!-- OUTPUT CARD -->
-  <div class="card out-card" id="outputCard">
-    <div class="out-toolbar">
-      <span>✦ Your Report</span>
-      <span id="dsScoreBadge" style="display:none;margin-left:8px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#e6fbf2;color:#00a368;"></span>
-      <button class="tool-btn" onclick="copyRaw()">📋 Copy</button>
-      <button class="tool-btn" onclick="exportWord()">📄 Word</button>
-      <button class="tool-btn" onclick="exportSlides()">📊 Slides</button>
-      <button class="tool-btn share" onclick="shareReport()">🔗 Share</button>
-    </div>
-    <div class="conf-legend" id="confLegend">
-      <span><span class="badge-finding">FINDING</span> Directly in the data</span>
-      <span><span class="badge-assumption">ASSUMPTION</span> Needs validation</span>
-    </div>
-    <div id="promoTip" style="display:none;font-size:12px;color:#5b6786;background:#f7f9ff;border:1px solid #e7ecfb;border-radius:10px;padding:8px 14px;margin-bottom:10px;"></div>
-    <div class="out-tabs" id="outTabs"></div>
-    <div id="outPanels"></div>
-  </div>
-
   <!-- CHAT -->
   <div class="chat-wrap" id="chatWrap" style="display:none">
     <div class="chat-header">💬 Ask a follow-up question about your data</div>
@@ -758,6 +796,13 @@
       <input type="text" id="chatInput" placeholder="e.g. Why did North outperform South?" onkeydown="if(event.key==='Enter') sendChat()"/>
       <button class="chat-send" id="chatSend" onclick="sendChat()">Send</button>
     </div>
+  </div>
+
+  <!-- RECENT REPORTS STRIP -->
+  <div class="recent-strip" id="recentStrip" style="display:none;margin-top:16px;">
+    <strong>Recent reports:</strong>
+    <span class="recent-items" id="recentItems"></span>
+    <a onclick="switchView('reports', document.getElementById('navReports'))">View all →</a>
   </div>
 
   </div><!-- /workspaceView -->
@@ -865,6 +910,41 @@
     document.getElementById('reportsView').style.display = view === 'reports' ? 'block' : 'none';
     if (view === 'reports') loadReports();
   }
+  function placeholderNav(name) {
+    alert(name + ' is coming soon.');
+  }
+
+  function setWorkspaceHeader(title, meta, showExport) {
+    document.getElementById('wsTitle').textContent = title || 'New report';
+    document.getElementById('wsMeta').textContent = meta || 'Paste your data below to get started';
+    document.getElementById('wsExportBtn').style.display = showExport ? 'inline-block' : 'none';
+  }
+
+  function newReport() {
+    document.getElementById('resultsGrid').style.display = 'none';
+    document.getElementById('kpiRow').style.display = 'none';
+    document.getElementById('chartCard').style.display = 'none';
+    document.getElementById('outputCard').classList.remove('visible');
+    document.getElementById('chatWrap').style.display = 'none';
+    lastReportId = '';
+    setWorkspaceHeader('New report', 'Paste your data below to get started', false);
+    document.getElementById('dataInput').value = '';
+    document.getElementById('dataInput').focus();
+  }
+
+  async function updateRecentStrip() {
+    const strip = document.getElementById('recentStrip');
+    const items = document.getElementById('recentItems');
+    if (!userToken) { strip.style.display = 'none'; return; }
+    try {
+      const res = await fetch('/api/reports', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: userToken }) });
+      const json = await res.json();
+      const reports = (json.reports || []).slice(0, 3);
+      if (!reports.length) { strip.style.display = 'none'; return; }
+      items.textContent = reports.map(r => r.title || 'Untitled Report').join(' · ');
+      strip.style.display = 'flex';
+    } catch(e) { strip.style.display = 'none'; }
+  }
 
   async function loadReports() {
     const list = document.getElementById('reportsList');
@@ -910,6 +990,8 @@
       if ((json.result||'').toUpperCase().includes('FORENSIC TRAIL')) renderKeys.push('forensic trail');
       renderOutput(json.result, renderKeys);
       renderKPIs(json.kpis); renderChart(json.series);
+      const date = new Date(json.created_at).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'});
+      setWorkspaceHeader(lastTitle, (json.data_source ? json.data_source.toUpperCase() + ' · ' : '') + 'saved ' + date, true);
       switchView('workspace', document.getElementById('navWorkspace'));
       document.getElementById('outputCard').scrollIntoView({behavior:'smooth', block:'start'});
     } catch(e) {}
@@ -1019,7 +1101,7 @@
     document.getElementById('appWrap').classList.add('visible');
     document.getElementById('navRight').style.display = 'flex';
     document.getElementById('welcomeEmail').textContent = email;
-    updateUsageUI(); updatePlaceholder(); loadUserTemplates();
+    updateUsageUI(); updatePlaceholder(); loadUserTemplates(); updateRecentStrip();
     if (!localStorage.getItem('dsTourSeen')) {
       document.getElementById('onboardTour').style.display = 'block';
     }
@@ -1059,6 +1141,8 @@
   }
 
   function updateUsageUI() {
+    const sideFoot = document.getElementById('sidebarFooter');
+    if (sideFoot) sideFoot.textContent = 'DataSpeak · ' + (userPlan === 'pro' ? 'Pro plan' : 'Free plan');
     const pill   = document.getElementById('usagePill');
     const fill   = document.getElementById('usageFill');
     const upBtn  = document.getElementById('upgradeBarBtn');
@@ -1206,6 +1290,7 @@
     }
     // reset output
     document.getElementById('outputCard').classList.remove('visible');
+    document.getElementById('resultsGrid').style.display = 'none';
     document.getElementById('chatWrap').style.display = 'none';
     setLoader(false);
   }
@@ -1250,6 +1335,8 @@
       renderOutput(json.result, renderKeys);
       lastReportId = json.report_id || '';
       renderKPIs(json.kpis); renderChart(json.series);
+      setWorkspaceHeader(lastTitle, (currentSrc ? currentSrc.toUpperCase() + ' · ' : '') + 'updated just now', true);
+      updateRecentStrip();
     } catch(e) { showErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
@@ -1290,6 +1377,8 @@
       renderOutput(json.result, cmpKeys);
       lastReportId = json.report_id || '';
       renderKPIs(json.kpis); renderChart(json.series);
+      setWorkspaceHeader(lastTitle, 'Comparison · updated just now', true);
+      updateRecentStrip();
     } catch(e) { showCmpErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
@@ -1398,7 +1487,8 @@
     });
 
     document.getElementById('outputCard').classList.add('visible');
-    document.getElementById('outputCard').scrollIntoView({behavior:'smooth'});
+    document.getElementById('resultsGrid').style.display = 'grid';
+    document.getElementById('resultsGrid').scrollIntoView({behavior:'smooth'});
 
     // Show chat
     if (lastResult && currentMode !== 'compare') {
