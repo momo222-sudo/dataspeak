@@ -740,7 +740,8 @@
     'comparison summary':'🔄 Summary', 'key differences':'📊 Differences',
     'what improved':'📈 Improved', 'what declined':'📉 Declined',
     'red flags':'🚨 Red Flags', 'root causes':'🔍 Root Causes',
-    'risk level':'⚠️ Risk Level', 'immediate actions':'⚡ Actions' };
+    'risk level':'⚠️ Risk Level', 'immediate actions':'⚡ Actions',
+    'forensic trail':'🔎 Forensic Trail' };
 
   // ── Init ──────────────────────────────────────────────────────────────────
   window.onload = async () => {
@@ -947,9 +948,11 @@
       if (json.error) { showErr(json.error); return; }
       if (json.usage !== undefined) { userUsage = json.usage; updateUsageUI(); }
       lastResult = json.result;
-      renderOutput(json.result, currentMode === 'red_flags'
+      const renderKeys = currentMode === 'red_flags'
         ? ['red flags','root causes','risk level','immediate actions']
-        : outputs);
+        : [...outputs];
+      if (json.result.toUpperCase().includes('FORENSIC TRAIL')) renderKeys.push('forensic trail');
+      renderOutput(json.result, renderKeys);
     } catch(e) { showErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
@@ -984,7 +987,9 @@
       if (json.error) { showCmpErr(json.error); return; }
       if (json.usage !== undefined) { userUsage = json.usage; updateUsageUI(); }
       lastResult = json.result;
-      renderOutput(json.result, ['comparison summary','key differences','what improved','what declined','recommendations']);
+      const cmpKeys = ['comparison summary','key differences','what improved','what declined','recommendations'];
+      if (json.result.toUpperCase().includes('FORENSIC TRAIL')) cmpKeys.push('forensic trail');
+      renderOutput(json.result, cmpKeys);
     } catch(e) { showCmpErr('Network error. Please try again.'); }
     finally { setLoader(false); }
   }
@@ -994,7 +999,8 @@
     summary:'PLAIN ENGLISH SUMMARY', bullets:'KEY INSIGHTS', recommendations:'RECOMMENDATIONS', email:'EMAIL FORMAT',
     'comparison summary':'COMPARISON SUMMARY', 'key differences':'KEY DIFFERENCES',
     'what improved':'WHAT IMPROVED', 'what declined':'WHAT DECLINED',
-    'red flags':'RED FLAGS', 'root causes':'ROOT CAUSES', 'risk level':'RISK LEVEL', 'immediate actions':'IMMEDIATE ACTIONS'
+    'red flags':'RED FLAGS', 'root causes':'ROOT CAUSES', 'risk level':'RISK LEVEL', 'immediate actions':'IMMEDIATE ACTIONS',
+    'forensic trail':'FORENSIC TRAIL'
   };
 
   function formatWithBadges(text) {
