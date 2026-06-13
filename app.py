@@ -66,7 +66,7 @@ INDUSTRY_BENCHMARKS = {
 - Absenteeism rate: healthy <2%""",
 }
 
-# ── Database ──────────────────────────────────────────────────────────────────
+# ── Database ───────────────────────────────────────────────────────────────────
 def get_db():
     db = sqlite3.connect(DB_PATH)
     db.row_factory = sqlite3.Row
@@ -131,7 +131,7 @@ def init_db():
 
 init_db()
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def reset_usage_if_needed(db, user):
     this_month = date.today().strftime('%Y-%m')
     if user['usage_reset_month'] != this_month:
@@ -292,7 +292,7 @@ def render_report_html(report):
 </body>
 </html>'''
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Routes ───────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
     return send_from_directory(app.static_folder, 'index.html')
@@ -408,7 +408,7 @@ def admin_stats():
         'recent': [{'email': r['email'], 'plan': r['plan'], 'joined': r['created_at']} for r in recent]
     })
 
-# ── Share report ──────────────────────────────────────────────────────────────
+# ── Share report ────────────────────────────────────────────────────────────
 @app.route('/api/share', methods=['POST'])
 def share_report():
     data  = request.json or {}
@@ -437,7 +437,7 @@ def share_report():
 
     return jsonify({'url': f'{APP_URL}/r/{report_id}', 'id': report_id})
 
-# ── Templates ─────────────────────────────────────────────────────────────────
+# ── Templates ──────────────────────────────────────────────────────────────────
 @app.route('/api/templates/save', methods=['POST'])
 def save_template():
     data  = request.json or {}
@@ -537,20 +537,21 @@ PREVIOUS ANALYSIS:
 FOLLOW-UP QUESTION: {question}
 
 Answer directly and concisely. Reference specific numbers from the data. Be analytical, not vague.
+Accuracy rules: base every claim strictly on the ORIGINAL DATA and PREVIOUS ANALYSIS above — never invent numbers, rows, or trends that aren't present. If the data doesn't contain enough information to answer fully, say so explicitly and explain what's missing. If you perform any calculation (sums, percentages, averages, growth rates), show the arithmetic so it can be verified.
 Plain text only. No markdown, no asterisks, no bullet dashes unless listing items."""
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=600,
+            model='claude-sonnet-4-6',
+            max_tokens=1200,
             messages=[{'role': 'user', 'content': prompt}]
         )
         return jsonify({'answer': message.content[0].text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Compare two datasets ──────────────────────────────────────────────────────
+# ── Compare two datasets ────────────────────────────────────────────────────────
 @app.route('/api/compare', methods=['POST'])
 def compare_datasets():
     data  = request.json or {}
@@ -614,13 +615,19 @@ What is worse/lower/weaker in {label2} vs {label1}. If nothing, say so.
 RECOMMENDATIONS
 3-4 specific actions based on this comparison.
 
+ACCURACY RULES:
+- Use ONLY the numbers and facts present in the two datasets above. Do not invent figures, rows, or trends.
+- When you state a difference, percentage change, or trend, show the underlying numbers from {label1} and {label2} so the comparison can be verified (e.g. "142,500 -> 168,400, up 18.2%").
+- Double-check every percentage and difference calculation before including it — arithmetic errors are not acceptable.
+- If a metric exists in one dataset but not the other, say so explicitly rather than guessing.
+
 Plain text only. No markdown. No asterisks. Section headers in uppercase exactly as shown. Reference actual numbers."""
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=1500,
+            model='claude-sonnet-4-6',
+            max_tokens=2500,
             messages=[{'role': 'user', 'content': prompt}]
         )
         with get_db() as db:
@@ -740,7 +747,7 @@ def export_word():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Export: PowerPoint slides ─────────────────────────────────────────────────
+# ── Export: PowerPoint slides ───────────────────────────────────────────────────
 @app.route('/api/export/slides', methods=['POST'])
 def export_slides():
     data  = request.json or {}
@@ -797,7 +804,7 @@ def export_slides():
             ln.fill.solid(); ln.fill.fore_color.rgb = GOLD
             ln.line.fill.background()
 
-        # ── Title slide ──────────────────────────────────────────────────────
+        # ── Title slide ─────────────────────────────────────────────────────────
         sl = prs.slides.add_slide(prs.slide_layouts[6])
         bg(sl)
         gold_bar(sl)
@@ -810,7 +817,7 @@ def export_slides():
         tb(sl, '  ·  '.join(meta), Inches(0.5), Inches(3.8), Inches(12), Inches(0.5), size=14, color=MUTED)
         tb(sl, 'dataspeak-vydp.onrender.com', Inches(0.5), Inches(6.9), Inches(12), Inches(0.4), size=10, color=MUTED)
 
-        # ── Parse sections ───────────────────────────────────────────────────
+        # ── Parse sections ─────────────────────────────────────────────────────
         HEADERS = ['PLAIN ENGLISH SUMMARY','KEY INSIGHTS','RECOMMENDATIONS',
                    'EMAIL FORMAT','COMPARISON SUMMARY','KEY DIFFERENCES',
                    'WHAT IMPROVED','WHAT DECLINED','RED FLAGS','ROOT CAUSES',
@@ -863,7 +870,7 @@ def export_slides():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# ── Stripe: checkout session ──────────────────────────────────────────────────
+# ── Stripe: checkout session ────────────────────────────────────────────────────
 @app.route('/api/create-checkout-session', methods=['POST'])
 def create_checkout():
     _stripe_key = os.environ.get('STRIPE_SECRET_KEY', '')
@@ -974,7 +981,7 @@ def stripe_webhook():
 
     return jsonify({'received': True})
 
-# ── Generate insights ─────────────────────────────────────────────────────────
+# ── Generate insights ────────────────────────────────────────────────────────────
 @app.route('/api/generate', methods=['POST'])
 def generate():
     data  = request.json or {}
@@ -1042,7 +1049,7 @@ def generate():
     audience_label = audience_labels.get(audience, audience)
     benchmarks_text = INDUSTRY_BENCHMARKS.get(industry, '')
 
-    # ── Red Flags mode ────────────────────────────────────────────────────────
+    # ── Red Flags mode ──────────────────────────────────────────────────────────
     if mode == 'red_flags':
         prompt = f"""You are a forensic data analyst specialising in risk detection. Your ONLY job is to find problems, anomalies, risks, and warning signs in this data.
 
@@ -1068,10 +1075,16 @@ Assign a single overall risk level: CRITICAL / HIGH / MEDIUM / LOW. Justify in 2
 IMMEDIATE ACTIONS
 3-5 specific things the team must do RIGHT NOW to address these issues. Be direct. No vague advice.
 
+ACCURACY RULES:
+- Base every red flag strictly on what is actually present in the DATA above — never invent numbers, rows, or patterns that aren't there.
+- Quote the exact figures, row values, or column names involved in each flag.
+- If you calculate a percentage, ratio, growth rate, or variance, show the calculation (e.g. "320 vs 410 = -22%") so it can be checked.
+- Do not pad the list with generic risk-management advice that isn't tied to specific evidence in this data. If fewer than 5 genuine issues exist, say so rather than inventing filler items.
+
 Plain text only. No markdown. No asterisks. Headers in uppercase exactly as shown. Reference actual numbers throughout."""
 
     else:
-        # ── Standard analyse mode ─────────────────────────────────────────────
+        # ── Standard analyse mode ────────────────────────────────────────────────
         output_instructions = {
             'summary':         'PLAIN ENGLISH SUMMARY\nWrite 2-3 clear sentences explaining what this data shows. No jargon.',
             'bullets':         'KEY INSIGHTS\nList 5-7 bullet points. For each, prefix with [FINDING] if directly supported by the data, or [ASSUMPTION] if it is a reasonable inference requiring validation.',
@@ -1103,13 +1116,21 @@ Where industry benchmarks are provided, compare the data against them.
 
 Be specific — reference actual numbers and patterns. Write like a senior analyst presenting to real decision-makers.
 
+ACCURACY RULES:
+- Use ONLY numbers, labels, and facts that actually appear in the DATA above. Never invent figures, rows, dates, or trends.
+- Whenever you cite a percentage, total, average, growth rate, or comparison, show the underlying numbers (e.g. "rose from 142,500 to 168,400 (+18.2%)") so it can be verified.
+- Double-check all arithmetic before including it — a wrong number undermines the whole report.
+- Mark every claim [FINDING] (directly supported by the data) or [ASSUMPTION] (inference requiring validation) as instructed per section — do not skip this.
+- If the data is incomplete or ambiguous for a section, say so explicitly rather than filling in plausible-sounding but unsupported content.
+- Cover the data completely: don't ignore rows, columns, or segments that are relevant to the question just because they're inconvenient.
+
 FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), no ## or ### headers. For bullet lists use a dash and space (- item). Write section headers exactly as shown above in plain uppercase."""
 
     try:
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
-            model='claude-haiku-4-5-20251001',
-            max_tokens=2000,
+            model='claude-sonnet-4-6',
+            max_tokens=4000,
             messages=[{'role': 'user', 'content': prompt}]
         )
         with get_db() as db:
