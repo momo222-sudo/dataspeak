@@ -623,6 +623,7 @@
       <div class="out-toolbar">
         <span>✦ Your Report</span>
         <span id="dsScoreBadge" style="display:none;margin-left:8px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#e6fbf2;color:#00a368;"></span>
+        <span id="trailBadge" style="display:none;margin-left:8px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#eaf1ff;color:#4f8ef7;">🔎 Forensic trail on</span>
         <button class="tool-btn" onclick="copyRaw()">📋 Copy</button>
         <button class="tool-btn" onclick="exportWord()">📄 Word</button>
         <button class="tool-btn" onclick="exportSlides()">📊 Slides</button>
@@ -1416,6 +1417,9 @@
     badge.style.color = color;
     badge.style.background = bg;
     badge.textContent = `DataSpeak Score: ${score}/100`;
+
+    const trailBadge = document.getElementById('trailBadge');
+    if (trailBadge) trailBadge.style.display = hasTrail ? 'inline-block' : 'none';
   }
 
   // ── Promote Compare / Share ─────────────────────────────────────────────────
