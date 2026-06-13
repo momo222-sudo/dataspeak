@@ -675,6 +675,9 @@ What is worse/lower/weaker in {label2} vs {label1}. If nothing, say so.
 RECOMMENDATIONS
 3-4 specific actions based on this comparison.
 
+FORENSIC TRAIL
+For each [FINDING] in KEY DIFFERENCES above, add one line in the form "Claim -> data used -> calculation/result" showing exactly which values from {label1} and {label2} were used and any arithmetic performed. If no calculation was needed, state the exact row or value referenced instead. Skip [ASSUMPTION] items here.
+
 ACCURACY RULES:
 - Use ONLY the numbers and facts present in the two datasets above. Do not invent figures, rows, or trends.
 - When you state a difference, percentage change, or trend, show the underlying numbers from {label1} and {label2} so the comparison can be verified (e.g. "142,500 -> 168,400, up 18.2%").
@@ -687,7 +690,7 @@ Plain text only. No markdown. No asterisks. Section headers in uppercase exactly
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
             model='claude-sonnet-4-6',
-            max_tokens=2500,
+            max_tokens=3000,
             messages=[{'role': 'user', 'content': prompt}]
         )
         with get_db() as db:
@@ -1135,6 +1138,9 @@ Assign a single overall risk level: CRITICAL / HIGH / MEDIUM / LOW. Justify in 2
 IMMEDIATE ACTIONS
 3-5 specific things the team must do RIGHT NOW to address these issues. Be direct. No vague advice.
 
+FORENSIC TRAIL
+For each [FINDING] in RED FLAGS above, add one line in the form "Claim -> data used -> calculation/result" showing exactly which values from the DATA were used and any arithmetic performed. If no calculation was needed, state the exact row or value referenced instead. Skip [ASSUMPTION] items here.
+
 ACCURACY RULES:
 - Base every red flag strictly on what is actually present in the DATA above — never invent numbers, rows, or patterns that aren't there.
 - Quote the exact figures, row values, or column names involved in each flag.
@@ -1152,6 +1158,7 @@ Plain text only. No markdown. No asterisks. Headers in uppercase exactly as show
             'email':           f'EMAIL FORMAT\nWrite a professional email to a {audience_label} sharing these findings. Include: Subject line, greeting, key findings (3-4 sentences), what it means, recommended next steps, and a sign-off.',
         }
         sections = '\n\n'.join(output_instructions[o] for o in outputs if o in output_instructions)
+        sections += '\n\nFORENSIC TRAIL\nFor each [FINDING] above, add one line in the form "Claim -> data used -> calculation/result" showing exactly which values from the DATA were used and any arithmetic performed. If no calculation was needed, state the exact row or value referenced instead. Skip [ASSUMPTION] items here.'
 
         prompt = f"""You are an expert data analyst and business communication specialist. Analyze the following {source_context} and produce a professional report.
 
@@ -1190,7 +1197,7 @@ FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), 
         client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         message = client.messages.create(
             model='claude-sonnet-4-6',
-            max_tokens=4000,
+            max_tokens=4500,
             messages=[{'role': 'user', 'content': prompt}]
         )
         with get_db() as db:
