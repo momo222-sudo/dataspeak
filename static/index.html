@@ -120,8 +120,8 @@
     /* APP */
     .app-wrap { display: none; }
     .app-wrap.visible { display: block; }
-        .app-shell { display: flex; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; align-items: flex-start; }
-    .app-sidebar { width: 220px; flex-shrink: 0; position: sticky; top: 78px; background: #161b30; border-radius: 18px; padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; min-height: 480px; }
+        .app-shell { display: flex; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; align-items: stretch; }
+    .app-sidebar { width: 220px; flex-shrink: 0; position: sticky; top: 78px; align-self: flex-start; background: #161b30; border-radius: 18px; padding: 18px 14px; display: flex; flex-direction: column; gap: 18px; min-height: calc(100vh - 96px); }
     .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 4px 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 800; font-size: 15px; color: #fff; }
     .sidebar-logo-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--accent2), #845ef7); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 14px; flex-shrink: 0; }
     .sidebar-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
@@ -542,7 +542,11 @@
       <a class="sidebar-link placeholder" onclick="placeholderNav('Team')">👥 Team</a>
       <a class="sidebar-link placeholder" onclick="placeholderNav('Settings')">⚙️ Settings</a>
     </nav>
-    <div class="sidebar-footer" id="sidebarFooter">DataSpeak · Free plan</div>
+    <div class="sidebar-footer">
+      <div id="sidebarFooter">DataSpeak · Free plan</div>
+      <div id="sidebarEmail" style="margin-top:4px;font-size:11px;color:rgba(255,255,255,0.35);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      <a class="sidebar-link placeholder" style="padding:8px 10px;margin-top:6px;" onclick="placeholderNav('Settings')">⚙️ Account settings</a>
+    </div>
   </aside>
   <div class="app-main">
   <div id="workspaceView">
@@ -1144,6 +1148,8 @@
   function updateUsageUI() {
     const sideFoot = document.getElementById('sidebarFooter');
     if (sideFoot) sideFoot.textContent = 'DataSpeak · ' + (userPlan === 'pro' ? 'Pro plan' : 'Free plan');
+    const sideEmail = document.getElementById('sidebarEmail');
+    if (sideEmail) sideEmail.textContent = document.getElementById('welcomeEmail').textContent || '';
     const pill   = document.getElementById('usagePill');
     const fill   = document.getElementById('usageFill');
     const upBtn  = document.getElementById('upgradeBarBtn');
