@@ -488,6 +488,19 @@
       <div class="usage-track"><div class="usage-fill" id="usageFill" style="width:0%"></div></div>
     </div>
     <button class="upgrade-pill" id="upgradeBarBtn" onclick="openUpgrade()" style="display:none">⚡ Go Pro</button>
+    <button onclick="toggleByokPanel()" style="background:none;border:1px solid #e7ecfb;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;color:#5b6786;cursor:pointer;margin-left:8px;">🔑 Use my own API key</button>
+  </div>
+
+  <!-- BYOK PANEL -->
+  <div id="byokPanel" style="display:none;background:#f7f9ff;border:1px solid #e7ecfb;border-radius:12px;padding:14px 18px;margin-bottom:16px;">
+    <div style="font-size:13px;font-weight:800;color:#1a1f36;margin-bottom:6px;">Bring your own Anthropic API key</div>
+    <p style="font-size:12px;color:#5b6786;margin-bottom:10px;line-height:1.6;">Optional. If you add your own Anthropic API key, your reports run on your key and don't count against your monthly limit. Stored only in your browser — never sent to anyone but Anthropic's API via our server.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input type="password" id="byokKeyInput" placeholder="sk-ant-..." style="flex:1;min-width:220px;padding:10px 14px;border:1px solid #e7ecfb;border-radius:10px;font-size:13px;font-family:inherit;"/>
+      <button onclick="saveByokKey()" style="background:linear-gradient(135deg,#f7c948,#e6b800);color:#1a1200;font-weight:800;border:none;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer;">Save</button>
+      <button onclick="clearByokKey()" style="background:#fff;border:1px solid #e7ecfb;border-radius:10px;padding:10px 18px;font-size:13px;cursor:pointer;color:#5b6786;">Remove</button>
+    </div>
+    <div id="byokStatus" style="font-size:12px;color:#00a368;font-weight:700;margin-top:8px;"></div>
   </div>
 
   <!-- LIMIT BANNER -->
@@ -572,6 +585,7 @@
       <div>
         <label>Question / Context</label>
         <input type="text" id="contextInput" placeholder="e.g. Which region has the best sales?"/>
+        <div id="smartSuggestions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
       </div>
       <div>
         <label>Audience</label>
@@ -672,6 +686,7 @@
   <div class="card out-card" id="outputCard">
     <div class="out-toolbar">
       <span>✦ Your Report</span>
+      <span id="dsScoreBadge" style="display:none;margin-left:8px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;background:#e6fbf2;color:#00a368;"></span>
       <button class="tool-btn" onclick="copyRaw()">📋 Copy</button>
       <button class="tool-btn" onclick="exportWord()">📄 Word</button>
       <button class="tool-btn" onclick="exportSlides()">📊 Slides</button>
@@ -681,6 +696,7 @@
       <span><span class="badge-finding">FINDING</span> Directly in the data</span>
       <span><span class="badge-assumption">ASSUMPTION</span> Needs validation</span>
     </div>
+    <div id="promoTip" style="display:none;font-size:12px;color:#5b6786;background:#f7f9ff;border:1px solid #e7ecfb;border-radius:10px;padding:8px 14px;margin-bottom:10px;"></div>
     <div class="out-tabs" id="outTabs"></div>
     <div id="outPanels"></div>
   </div>
@@ -831,6 +847,34 @@
     localStorage.setItem('dsTourSeen', '1');
   }
 
+  // ── BYOK (Bring Your Own Key) ────────────────────────────────────────────
+  function getByokKey() { return localStorage.getItem('ds_byok_key') || ''; }
+  function toggleByokPanel() {
+    const p = document.getElementById('byokPanel');
+    const show = p.style.display === 'none';
+    p.style.display = show ? 'block' : 'none';
+    if (show) {
+      document.getElementById('byokKeyInput').value = getByokKey();
+      updateByokStatus();
+    }
+  }
+  function saveByokKey() {
+    const v = document.getElementById('byokKeyInput').value.trim();
+    if (v) localStorage.setItem('ds_byok_key', v);
+    else localStorage.removeItem('ds_byok_key');
+    updateByokStatus();
+  }
+  function clearByokKey() {
+    localStorage.removeItem('ds_byok_key');
+    document.getElementById('byokKeyInput').value = '';
+    updateByokStatus();
+  }
+  function updateByokStatus() {
+    document.getElementById('byokStatus').textContent = getByokKey()
+      ? '✓ Using your API key — reports won\'t count against your monthly limit.'
+      : '';
+  }
+
   function updateUsageUI() {
     const pill   = document.getElementById('usagePill');
     const fill   = document.getElementById('usageFill');
@@ -921,6 +965,29 @@
     if (ta) ta.placeholder = placeholders[currentSrc]||'';
     const lbl = document.getElementById('pasteLabel');
     if (lbl) lbl.textContent = pasteLabels[currentSrc]||'Paste your data';
+    renderSmartSuggestions();
+  }
+
+  // ── Smart suggestions ────────────────────────────────────────────────────
+  const SMART_SUGGESTIONS = {
+    sql:    ['Which segment is driving the most growth?', 'Are there any outliers I should investigate?', 'How does this compare to last period?'],
+    r:      ['What do the coefficients tell us about the relationship?', 'Is this result statistically significant?', 'What are the practical implications of this model?'],
+    python: ['What patterns stand out in this DataFrame?', 'Are there any missing or unusual values?', 'What would you flag for a stakeholder review?'],
+    excel:  ['Which rows or categories need attention?', 'What trends are visible across these columns?', 'What should leadership prioritize based on this?'],
+  };
+  function renderSmartSuggestions() {
+    const wrap = document.getElementById('smartSuggestions');
+    if (!wrap) return;
+    const opts = SMART_SUGGESTIONS[currentSrc] || SMART_SUGGESTIONS.sql;
+    wrap.innerHTML = '';
+    opts.forEach(q => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = q;
+      chip.style.cssText = 'background:#f7f9ff;border:1px solid #e7ecfb;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;color:#5b6786;cursor:pointer;';
+      chip.onclick = () => { document.getElementById('contextInput').value = q; };
+      wrap.appendChild(chip);
+    });
   }
   function switchInput(tab, el) {
     currentInputTab = tab;
@@ -983,7 +1050,8 @@
           context: document.getElementById('contextInput').value.trim(),
           audience: lastAudience, industry: lastIndustry,
           tone: document.getElementById('toneSelect').value,
-          outputs, data_source: currentSrc, mode: currentMode
+          outputs, data_source: currentSrc, mode: currentMode,
+          byok_key: getByokKey()
         })
       });
       const json = await res.json();
@@ -1023,6 +1091,7 @@
           audience: lastAudience,
           label1: document.getElementById('label1').value.trim() || 'Dataset A',
           label2: document.getElementById('label2').value.trim() || 'Dataset B',
+          byok_key: getByokKey(),
         })
       });
       const json = await res.json();
@@ -1046,6 +1115,45 @@
     'forensic trail':'FORENSIC TRAIL'
   };
 
+  // ── DataSpeak Score (client-side heuristic) ─────────────────────────────────
+  function showDataSpeakScore(text) {
+    const badge = document.getElementById('dsScoreBadge');
+    if (!badge) return;
+    const findings    = (text.match(/\[FINDING\]/g)    || []).length;
+    const assumptions = (text.match(/\[ASSUMPTION\]/g) || []).length;
+    const hasTrail    = text.toUpperCase().includes('FORENSIC TRAIL');
+    const numTokens   = (text.match(/\d[\d,.]*%?/g) || []).length;
+
+    let score = 30;
+    score += Math.min(findings * 4, 32);
+    score += Math.min(assumptions * 2, 8);
+    score += hasTrail ? 20 : 0;
+    score += Math.min(numTokens, 10);
+    score = Math.max(0, Math.min(100, Math.round(score)));
+
+    let color = '#00a368', bg = '#e6fbf2';
+    if (score < 50)      { color = '#b9871a'; bg = '#fff4d9'; }
+    else if (score < 75) { color = '#4f8ef7'; bg = '#eaf1ff'; }
+
+    badge.style.display = 'inline-block';
+    badge.style.color = color;
+    badge.style.background = bg;
+    badge.textContent = `DataSpeak Score: ${score}/100`;
+  }
+
+  // ── Promote Compare / Share ─────────────────────────────────────────────────
+  function showPromoTip() {
+    const el = document.getElementById('promoTip');
+    if (!el) return;
+    const tips = [
+      '💡 Tip: Switch to 🔄 Compare mode to see exactly what changed between two datasets — with the same accuracy guarantees.',
+      '💡 Tip: Click 🔗 Share above to get a live link to this report — no login required for whoever you send it to.',
+      '💡 Tip: Open the 🔎 Forensic Trail tab (when available) to see the exact data and math behind each finding.'
+    ];
+    el.style.display = 'block';
+    el.textContent = tips[Math.floor(Math.random() * tips.length)];
+  }
+
   function formatWithBadges(text) {
     return text
       .replace(/\[FINDING\]/g, '<span class="badge-finding">FINDING</span>')
@@ -1068,6 +1176,9 @@
 
     const hasConf = text.includes('[FINDING]') || text.includes('[ASSUMPTION]');
     document.getElementById('confLegend').style.display = hasConf ? 'flex' : 'none';
+
+    showDataSpeakScore(text);
+    showPromoTip();
 
     const tabsEl   = document.getElementById('outTabs');
     const panelsEl = document.getElementById('outPanels');
