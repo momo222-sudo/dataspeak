@@ -615,7 +615,8 @@ Plain text only. No markdown, no asterisks, no bullet dashes unless listing item
 @app.route('/api/compare', methods=['POST'])
 def compare_datasets():
     data  = request.json or {}
-    token = (data.get('token') or '').strip()
+    token    = (data.get('token') or '').strip()
+    byok_key = (data.get('byok_key') or '').strip()
 
     with get_db() as db:
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
@@ -623,10 +624,11 @@ def compare_datasets():
             return jsonify({'error': 'Invalid token.'}), 401
         reset_usage_if_needed(db, user)
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
-        can, err = user_can_generate(user)
-        if not can:
-            return jsonify({'error': err, 'upgrade': True,
-                            'usage': user['usage_count'], 'limit': FREE_LIMIT}), 403
+        if not byok_key:
+            can, err = user_can_generate(user)
+            if not can:
+                return jsonify({'error': err, 'upgrade': True,
+                                'usage': user['usage_count'], 'limit': FREE_LIMIT}), 403
 
     data1    = (data.get('data1') or '').strip()
     data2    = (data.get('data2') or '').strip()
@@ -687,16 +689,20 @@ ACCURACY RULES:
 Plain text only. No markdown. No asterisks. Section headers in uppercase exactly as shown. Reference actual numbers."""
 
     try:
-        client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+        client  = anthropic.Anthropic(api_key=byok_key or ANTHROPIC_KEY)
         message = client.messages.create(
             model='claude-sonnet-4-6',
             max_tokens=3000,
             messages=[{'role': 'user', 'content': prompt}]
         )
-        with get_db() as db:
-            db.execute('UPDATE users SET usage_count=usage_count+1 WHERE token=?', (token,))
-            db.commit()
-            updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
+        if byok_key:
+            with get_db() as db:
+                updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
+        else:
+            with get_db() as db:
+                db.execute('UPDATE users SET usage_count=usage_count+1 WHERE token=?', (token,))
+                db.commit()
+                updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
 
         return jsonify({
             'result': message.content[0].text,
@@ -1053,16 +1059,19 @@ def generate():
     if not token:
         return jsonify({'error': 'Please sign in first.'}), 401
 
+    byok_key = (data.get('byok_key') or '').strip()
+
     with get_db() as db:
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
         if not user:
             return jsonify({'error': 'Invalid token. Please sign in again.'}), 401
         reset_usage_if_needed(db, user)
         user = db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
-        can, err = user_can_generate(user)
-        if not can:
-            return jsonify({'error': err, 'upgrade': True,
-                            'usage': user['usage_count'], 'limit': FREE_LIMIT}), 403
+        if not byok_key:
+            can, err = user_can_generate(user)
+            if not can:
+                return jsonify({'error': err, 'upgrade': True,
+                                'usage': user['usage_count'], 'limit': FREE_LIMIT}), 403
 
     raw_data    = (data.get('data') or '').strip()
     context     = (data.get('context') or '').strip()
@@ -1194,16 +1203,20 @@ ACCURACY RULES:
 FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), no ## or ### headers. For bullet lists use a dash and space (- item). Write section headers exactly as shown above in plain uppercase."""
 
     try:
-        client  = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+        client  = anthropic.Anthropic(api_key=byok_key or ANTHROPIC_KEY)
         message = client.messages.create(
             model='claude-sonnet-4-6',
             max_tokens=4500,
             messages=[{'role': 'user', 'content': prompt}]
         )
-        with get_db() as db:
-            db.execute('UPDATE users SET usage_count=usage_count+1 WHERE token=?', (token,))
-            db.commit()
-            updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
+        if byok_key:
+            with get_db() as db:
+                updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
+        else:
+            with get_db() as db:
+                db.execute('UPDATE users SET usage_count=usage_count+1 WHERE token=?', (token,))
+                db.commit()
+                updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
 
         return jsonify({
             'result': message.content[0].text,
