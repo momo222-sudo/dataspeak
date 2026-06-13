@@ -139,6 +139,17 @@ def init_db():
         for col, sql in migrations.items():
             if col not in cols:
                 db.execute(sql)
+        report_cols = [r[1] for r in db.execute("PRAGMA table_info(reports)").fetchall()]
+        report_migrations = {
+            'raw_data':    "ALTER TABLE reports ADD COLUMN raw_data TEXT DEFAULT ''",
+            'data_source': "ALTER TABLE reports ADD COLUMN data_source TEXT DEFAULT ''",
+            'kpis':        "ALTER TABLE reports ADD COLUMN kpis TEXT DEFAULT ''",
+            'series':      "ALTER TABLE reports ADD COLUMN series TEXT DEFAULT ''",
+            'context':     "ALTER TABLE reports ADD COLUMN context TEXT DEFAULT ''",
+        }
+        for col, sql in report_migrations.items():
+            if col not in report_cols:
+                db.execute(sql)
         db.commit()
 
 init_db()
@@ -168,6 +179,75 @@ def user_can_generate(user):
 def get_user_by_token(token):
     with get_db() as db:
         return db.execute('SELECT * FROM users WHERE token = ?', (token,)).fetchone()
+
+# ── Lightweight table parser: powers KPI cards + trend chart ───────────────────
+def analyze_table(raw_data):
+    """Best-effort parse of pasted CSV/tabular data into KPI cards + a chart series.
+    Returns (kpis, series) where kpis is a list of dicts and series is a dict or
+    (None, None) if the data doesn't look tabular enough to summarize."""
+    if not raw_data:
+        return None, None
+
+    lines = [l for l in raw_data.strip().splitlines() if l.strip()]
+    if len(lines) < 3:
+        return None, None
+
+    def split_row(line):
+        if '\t' in line:
+            return [c.strip() for c in line.split('\t')]
+        if ',' in line:
+            return [c.strip().strip('"') for c in line.split(',')]
+        return [c.strip() for c in line.split()]
+
+    header = split_row(lines[0])
+    rows   = [split_row(l) for l in lines[1:]]
+    rows   = [r for r in rows if len(r) == len(header)]
+    if len(rows) < 2 or len(header) < 2:
+        return None, None
+
+    def to_num(v):
+        try:
+            return float(v.replace(',', '').replace('$', '').replace('%', ''))
+        except (ValueError, AttributeError):
+            return None
+
+    numeric_cols = []
+    for i, col_name in enumerate(header):
+        vals = [to_num(r[i]) for r in rows]
+        if all(v is not None for v in vals):
+            numeric_cols.append((i, col_name, vals))
+
+    if not numeric_cols:
+        return None, None
+
+    label_col_idx = 0
+    for i in range(len(header)):
+        if not any(i == c[0] for c in numeric_cols):
+            label_col_idx = i
+            break
+    labels = [r[label_col_idx] for r in rows]
+
+    kpis = []
+    for i, col_name, vals in numeric_cols[:4]:
+        current  = vals[-1]
+        previous = vals[-2]
+        delta_pct = None
+        if previous not in (None, 0):
+            delta_pct = round((current - previous) / abs(previous) * 100, 1)
+        kpis.append({
+            'label': col_name,
+            'value': current,
+            'delta_pct': delta_pct,
+        })
+
+    chart_col = numeric_cols[0]
+    series = {
+        'label':  chart_col[1],
+        'labels': labels[-12:],
+        'values': chart_col[2][-12:],
+    }
+
+    return kpis, series
 
 def render_report_html(report):
     """Render a beautiful public HTML page for a shared report."""
@@ -704,11 +784,28 @@ Plain text only. No markdown. No asterisks. Section headers in uppercase exactly
                 db.commit()
                 updated = db.execute('SELECT usage_count, plan FROM users WHERE token=?', (token,)).fetchone()
 
+        result_text  = message.content[0].text
+        kpis, series = analyze_table(raw_data)
+        report_id    = secrets.token_urlsafe(12)
+        report_title = context or 'DataSpeak Report'
+        with get_db() as db:
+            db.execute(
+                'INSERT INTO reports (id, user_id, title, result, audience, industry, mode, outputs, raw_data, data_source, kpis, series, context) '
+                'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                (report_id, user['id'], report_title, result_text, audience, industry, mode,
+                 json.dumps(outputs), raw_data[:20000], data_source,
+                 json.dumps(kpis) if kpis else '', json.dumps(series) if series else '', context)
+            )
+            db.commit()
+
         return jsonify({
-            'result': message.content[0].text,
-            'usage': updated['usage_count'],
-            'limit': FREE_LIMIT,
-            'plan': updated['plan']
+            'result':    result_text,
+            'usage':     updated['usage_count'],
+            'limit':     FREE_LIMIT,
+            'plan':      updated['plan'],
+            'report_id': report_id,
+            'kpis':      kpis,
+            'series':    series,
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1226,6 +1323,51 @@ FORMATTING: Plain text only. No markdown. No asterisks (*), no bold (**text**), 
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ── Report history ────────────────────────────────────────────────────────────
+@app.route('/api/reports', methods=['POST'])
+def list_reports():
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    with get_db() as db:
+        rows = db.execute(
+            'SELECT id, title, mode, data_source, created_at FROM reports WHERE user_id=? ORDER BY created_at DESC LIMIT 20',
+            (user['id'],)
+        ).fetchall()
+
+    return jsonify({'reports': [{
+        'id': r['id'], 'title': r['title'], 'mode': r['mode'],
+        'data_source': r['data_source'], 'created_at': r['created_at']
+    } for r in rows]})
+
+@app.route('/api/reports/<report_id>', methods=['POST'])
+def get_report(report_id):
+    data  = request.json or {}
+    token = (data.get('token') or '').strip()
+    user  = get_user_by_token(token)
+    if not user:
+        return jsonify({'error': 'Invalid token.'}), 401
+
+    with get_db() as db:
+        r = db.execute('SELECT * FROM reports WHERE id=? AND user_id=?', (report_id, user['id'])).fetchone()
+    if not r:
+        return jsonify({'error': 'Report not found.'}), 404
+
+    return jsonify({
+        'id': r['id'], 'title': r['title'], 'result': r['result'],
+        'audience': r['audience'], 'industry': r['industry'], 'mode': r['mode'],
+        'outputs': json.loads(r['outputs']) if r['outputs'] else [],
+        'data_source': r['data_source'], 'raw_data': r['raw_data'], 'context': r['context'],
+        'kpis': json.loads(r['kpis']) if r['kpis'] else None,
+        'series': json.loads(r['series']) if r['series'] else None,
+        'created_at': r['created_at'],
+    })
+
 
 
 if __name__ == '__main__':
